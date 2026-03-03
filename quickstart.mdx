@@ -159,15 +159,15 @@ Extend your table with plugins for additional features:
 
 ```tsx
 import { useSeizenTable, SeizenTable } from "@izumisy/seizen-table";
-import { RowDetail } from "@izumisy/seizen-table-plugins";
+import { RowDetailPlugin } from "@izumisy/seizen-table-plugins/row-detail";
 
 function UsersTable() {
   const table = useSeizenTable({
     data,
     columns,
     plugins: [
-      RowDetail.configure({ 
-        render: (row) => <UserDetail user={row} /> 
+      RowDetailPlugin.configure({ 
+        width: 350 
       }),
     ],
   });

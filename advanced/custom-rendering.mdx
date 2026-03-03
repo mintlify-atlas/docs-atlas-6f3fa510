@@ -184,6 +184,8 @@ function HighlightedTable<TData extends { status: string }>({
 Custom rendering works alongside the plugin system. You can still use `table.render()` or access plugin state:
 
 ```tsx
+import { RowDetailPlugin } from "@izumisy/seizen-table-plugins/row-detail";
+
 function CustomTableWithPlugins<TData>({
   data,
   columns,
@@ -195,7 +197,7 @@ function CustomTableWithPlugins<TData>({
     data,
     columns,
     plugins: [
-      RowDetail.configure({ render: (row) => <Detail data={row.original} /> }),
+      RowDetailPlugin.configure({ width: 350 }),
     ],
   });
   const tanstack = table._tanstackTable;
