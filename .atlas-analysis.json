@@ -1,0 +1,108 @@
+{
+  "projectType": "frontend",
+  "projectName": "Seizen Table",
+  "projectDescription": "Enterprise-grade React Table component and plugins for serious applications",
+  "theme": "linden",
+  "primaryColor": "#2563eb",
+  "lightColor": "#3b82f6",
+  "darkColor": "#1e40af",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "core/table-component",
+              "core/columns",
+              "core/theming",
+              "core/pagination",
+              "core/events"
+            ]
+          },
+          {
+            "group": "Plugins",
+            "pages": [
+              "plugins/overview",
+              "plugins/filter",
+              "plugins/column-control",
+              "plugins/file-export",
+              "plugins/row-detail",
+              "plugins/remote",
+              "plugins/preset-filter"
+            ]
+          },
+          {
+            "group": "Advanced",
+            "pages": [
+              "advanced/custom-rendering",
+              "advanced/plugin-development",
+              "advanced/data-adapters",
+              "advanced/context-menu"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Core API",
+            "pages": [
+              "api/use-seizen-table",
+              "api/seizen-table",
+              "api/paginator",
+              "api/types"
+            ]
+          },
+          {
+            "group": "Plugin API",
+            "pages": [
+              "api/plugin/define-plugin",
+              "api/plugin/plugin-context",
+              "api/plugin/event-bus",
+              "api/plugin/slot-types"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "CSS Variables theming with full customization",
+    "TypeScript with complete type safety",
+    "Extensible plugin system for adding features",
+    "Built-in event bus for state changes and interactions",
+    "Pagination support (offset and cursor-based)",
+    "Context menu system for cells and columns",
+    "Official plugins for filtering, column control, and export"
+  ],
+  "publicApiSurface": [
+    "useSeizenTable",
+    "SeizenTable",
+    "Paginator",
+    "useSeizenTableEvent",
+    "useSeizenTableContext",
+    "definePlugin",
+    "usePluginContext",
+    "usePluginArgs",
+    "SeizenTablePlugins",
+    "useContextMenuHandlers",
+    "flexRender",
+    "FilterPlugin",
+    "ColumnControlPlugin",
+    "FileExportPlugin",
+    "RowDetailPlugin",
+    "RemotePlugin",
+    "PresetFilterPlugin"
+  ]
+}
