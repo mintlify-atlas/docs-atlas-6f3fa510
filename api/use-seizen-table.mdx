@@ -1,0 +1,386 @@
+---
+title: useSeizenTable
+description: Core hook for creating a Seizen Table instance with data, columns, and configuration options
+icon: hook
+---
+
+The `useSeizenTable` hook is the foundation of Seizen Table. It creates a table instance with state management, plugin support, and event handling.
+
+## Import
+
+```tsx
+import { useSeizenTable } from "@izumisy/seizen-table";
+```
+
+## Usage
+
+```tsx
+import { useSeizenTable, SeizenTable } from "@izumisy/seizen-table";
+
+interface User {
+  name: string;
+  age: number;
+  email: string;
+}
+
+const columns = [
+  { accessorKey: "name", header: "Name" },
+  { accessorKey: "age", header: "Age" },
+  { accessorKey: "email", header: "Email" },
+];
+
+const data: User[] = [
+  { name: "John Doe", age: 30, email: "john@example.com" },
+  { name: "Jane Smith", age: 25, email: "jane@example.com" },
+];
+
+function MyTable() {
+  const table = useSeizenTable({
+    data,
+    columns,
+    plugins: [],
+    enableMultiSelect: true,
+  });
+
+  return <SeizenTable table={table} />;
+}
+```
+
+## Options
+
+<ParamField path="data" type="TData[]" required>
+  Array of row data to display in the table.
+</ParamField>
+
+<ParamField path="columns" type="SeizenTableColumn<TData>[]" required>
+  Column definitions using TanStack Table's `ColumnDef` type. Each column can have:
+  - `accessorKey`: Key to access data in the row object
+  - `header`: Column header text or component
+  - `cell`: Custom cell renderer
+  - `id`: Unique column identifier (auto-generated if not provided)
+  - See [TanStack Table Column Def](https://tanstack.com/table/v8/docs/api/core/column-def) for all options
+</ParamField>
+
+<ParamField path="plugins" type="SeizenTablePlugin<any>[]" default="[]">
+  Array of plugins to extend table functionality. Plugins can add:
+  - UI slots (side panels, headers, footers, inline rows, cells)
+  - Context menu items
+  - Event listeners
+  - Custom behaviors
+
+  See the [Plugin Development](/plugins/overview) guide for details.
+</ParamField>
+
+<ParamField path="initialSelection" type="RowSelectionState" default="{}">
+  Initial row selection state. Format: `{ [rowIndex: number]: boolean }`
+
+  ```tsx
+  initialSelection={{ 0: true, 2: true }} // Select first and third rows
+  ```
+</ParamField>
+
+<ParamField path="enableMultiSelect" type="boolean" default="true">
+  Enable multi-row selection. When `false`, only one row can be selected at a time.
+</ParamField>
+
+<ParamField path="remote" type="boolean | RemoteOptions" default="false">
+  Enable Remote Mode for server-side filtering, sorting, and pagination.
+
+  When enabled:
+  - Internal filtering/sorting/pagination is disabled
+  - `data` is expected to be pre-processed by your server
+  - State change methods (`setFilter`, `setSorting`, etc.) emit events AND update internal state
+  - Use with `eventBus` to listen for state changes and fetch new data
+
+  **Options:**
+  - `true` - Enable without pagination support (e.g., cursor pagination)
+  - `{ totalRowCount: number }` - Enable with pagination (required for page count calculation)
+
+  ```tsx
+  // With pagination
+  const table = useSeizenTable({
+    data,
+    columns,
+    remote: { totalRowCount: 1000 },
+  });
+
+  // Listen for pagination changes
+  table.eventBus.subscribe("pagination-change", (state) => {
+    fetchData(state.pageIndex, state.pageSize);
+  });
+  ```
+
+  See [RemotePlugin](/plugins/remote) for more details.
+</ParamField>
+
+## Return Value
+
+Returns a `SeizenTableInstance<TData>` with methods to control the table.
+
+### Selection Methods
+
+<ResponseField name="getSelectedRows" type="() => TData[]">
+  Get array of currently selected row data.
+
+  ```tsx
+  const selectedRows = table.getSelectedRows();
+  console.log("Selected:", selectedRows);
+  ```
+</ResponseField>
+
+<ResponseField name="setSelectedRows" type="(rows: TData[]) => void">
+  Programmatically select specific rows.
+
+  ```tsx
+  table.setSelectedRows([data[0], data[2]]); // Select first and third rows
+  ```
+</ResponseField>
+
+<ResponseField name="clearSelection" type="() => void">
+  Clear all row selections.
+
+  ```tsx
+  table.clearSelection();
+  ```
+</ResponseField>
+
+### Filtering Methods
+
+<ResponseField name="getFilterState" type="() => ColumnFiltersState">
+  Get current column filter state.
+
+  Returns array: `[{ id: string, value: unknown }]`
+</ResponseField>
+
+<ResponseField name="setFilter" type="(filter: ColumnFiltersState) => void">
+  Set column filters programmatically.
+
+  ```tsx
+  table.setFilter([{ id: "age", value: { min: 25, max: 40 } }]);
+  ```
+
+  In Remote Mode, this also emits a `filter-change` event.
+</ResponseField>
+
+<ResponseField name="getGlobalFilter" type="() => string">
+  Get current global filter value.
+</ResponseField>
+
+<ResponseField name="setGlobalFilter" type="(value: string) => void">
+  Set global filter (searches across all columns).
+
+  ```tsx
+  table.setGlobalFilter("john");
+  ```
+</ResponseField>
+
+### Sorting Methods
+
+<ResponseField name="getSortingState" type="() => SortingState">
+  Get current sorting state.
+
+  Returns array: `[{ id: string, desc: boolean }]`
+</ResponseField>
+
+<ResponseField name="setSorting" type="(sorting: SortingState) => void">
+  Set sorting programmatically.
+
+  ```tsx
+  table.setSorting([{ id: "age", desc: true }]); // Sort by age descending
+  ```
+
+  In Remote Mode, this also emits a `sorting-change` event.
+</ResponseField>
+
+### Pagination Methods
+
+<ResponseField name="getPaginationState" type="() => PaginationState">
+  Get current pagination state.
+
+  Returns: `{ pageIndex: number, pageSize: number }`
+</ResponseField>
+
+<ResponseField name="setPageIndex" type="(index: number) => void">
+  Navigate to a specific page (0-based index).
+
+  ```tsx
+  table.setPageIndex(2); // Go to page 3
+  ```
+
+  In Remote Mode, this also emits a `pagination-change` event.
+</ResponseField>
+
+<ResponseField name="setPageSize" type="(size: number) => void">
+  Change number of rows per page.
+
+  ```tsx
+  table.setPageSize(50); // Show 50 rows per page
+  ```
+
+  In Remote Mode, this also emits a `pagination-change` event.
+</ResponseField>
+
+### Data Methods
+
+<ResponseField name="getData" type="() => TData[]">
+  Get current table data.
+</ResponseField>
+
+<ResponseField name="getColumns" type="() => SeizenTableColumn<TData>[]">
+  Get column definitions.
+</ResponseField>
+
+### Column Visibility Methods
+
+<ResponseField name="getColumnVisibility" type="() => VisibilityState">
+  Get column visibility state.
+
+  Returns object: `{ [columnId: string]: boolean }` where `true` means visible.
+</ResponseField>
+
+<ResponseField name="setColumnVisibility" type="(visibility: VisibilityState) => void">
+  Set column visibility state.
+
+  ```tsx
+  table.setColumnVisibility({ email: false }); // Hide email column
+  ```
+</ResponseField>
+
+<ResponseField name="toggleColumnVisibility" type="(columnId: string) => void">
+  Toggle visibility of a specific column.
+
+  ```tsx
+  table.toggleColumnVisibility("email");
+  ```
+</ResponseField>
+
+### Column Order Methods
+
+<ResponseField name="getColumnOrder" type="() => ColumnOrderState">
+  Get current column order.
+
+  Returns array of column IDs: `string[]`
+</ResponseField>
+
+<ResponseField name="setColumnOrder" type="(order: ColumnOrderState) => void">
+  Set column order.
+
+  ```tsx
+  table.setColumnOrder(["email", "name", "age"]);
+  ```
+</ResponseField>
+
+<ResponseField name="moveColumn" type="(columnId: string, toIndex: number) => void">
+  Move a column to a new position.
+
+  ```tsx
+  table.moveColumn("email", 0); // Move email to first position
+  ```
+</ResponseField>
+
+### Plugin Properties
+
+<ResponseField name="plugins" type="SeizenTablePlugin<any>[]">
+  Array of registered plugins.
+</ResponseField>
+
+<ResponseField name="plugin" type="PluginControl">
+  Plugin control interface for opening/closing plugins.
+
+  ```tsx
+  table.plugin.open("my-plugin", { row: data[0] }); // Open plugin
+  table.plugin.close(); // Close plugin
+  table.plugin.isOpen("my-plugin"); // Check if plugin is open
+  table.plugin.getActiveId(); // Get currently open plugin ID
+  ```
+</ResponseField>
+
+<ResponseField name="eventBus" type="EventBus">
+  Event bus for plugin communication and Remote Mode.
+
+  Built-in events:
+  - `data-change`: Emitted when table data changes
+  - `selection-change`: Emitted when row selection changes
+  - `filter-change`: Emitted when filters change (Remote Mode)
+  - `sorting-change`: Emitted when sorting changes (Remote Mode)
+  - `pagination-change`: Emitted when pagination changes (Remote Mode)
+  - `row-click`: Emitted when a row is clicked
+  - `cell-context-menu`: Emitted when cell context menu opens
+  - `column-context-menu`: Emitted when column header context menu opens
+
+  ```tsx
+  // Subscribe to events
+  table.eventBus.subscribe("selection-change", (selectedRows) => {
+    console.log("Selection changed:", selectedRows);
+  });
+
+  // Emit custom events
+  table.eventBus.emit("custom-event", { data: "value" });
+  ```
+</ResponseField>
+
+<ResponseField name="remote" type="boolean | RemoteOptions">
+  Remote Mode configuration.
+  - `false`: Not in Remote Mode
+  - `true`: Remote Mode without totalRowCount
+  - `{ totalRowCount: number }`: Remote Mode with totalRowCount
+
+  Plugins can use this to adjust their behavior.
+
+  ```tsx
+  if (table.remote) {
+    // Disable client-side search in Remote Mode
+  }
+
+  // Access totalRowCount for pagination
+  const total = typeof table.remote === "object" ? table.remote.totalRowCount : undefined;
+  ```
+</ResponseField>
+
+### Advanced
+
+<ResponseField name="_tanstackTable" type="Table<TData>">
+  The underlying TanStack Table instance. Use for advanced operations not exposed by `SeizenTableInstance`.
+
+  <Warning>
+    This is an internal API and may change. Use the high-level methods when possible.
+  </Warning>
+</ResponseField>
+
+## Type Parameters
+
+<ParamField path="TData" type="generic">
+  The type of your row data. Enables full TypeScript type safety throughout the table.
+
+  ```tsx
+  interface User {
+    id: number;
+    name: string;
+    email: string;
+  }
+
+  const table = useSeizenTable<User>({
+    data: users,
+    columns: [
+      { accessorKey: "name", header: "Name" }, // ✅ Type-safe
+      { accessorKey: "invalid", header: "Invalid" }, // ❌ Type error
+    ],
+  });
+
+  const selected: User[] = table.getSelectedRows(); // ✅ Typed as User[]
+  ```
+</ParamField>
+
+## Related Types
+
+See [Core Types](/api/types) for:
+- `SeizenTableColumn<TData>`
+- `SeizenTableInstance<TData>`
+- `UseSeizenTableOptions<TData>`
+- `RemoteOptions`
+- `RowSelectionState`
+- `ColumnFiltersState`
+- `SortingState`
+- `PaginationState`
+- `VisibilityState`
+- `ColumnOrderState`

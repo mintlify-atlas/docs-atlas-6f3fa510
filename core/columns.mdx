@@ -1,0 +1,348 @@
+---
+title: 'Column Configuration'
+description: 'Define and configure table columns with type safety'
+---
+
+## Overview
+
+Columns in Seizen Table are defined using TanStack Table's `ColumnDef` type with full TypeScript support. The library re-exports this type as `SeizenTableColumn<TData>` for convenience.
+
+## Basic Column Definition
+
+The simplest way to define columns is using `accessorKey`:
+
+```tsx
+import { type ColumnDef } from '@izumisy/seizen-table';
+
+type Person = {
+  name: string;
+  age: number;
+  email: string;
+};
+
+const columns: ColumnDef<Person>[] = [
+  { accessorKey: 'name', header: 'Name' },
+  { accessorKey: 'age', header: 'Age' },
+  { accessorKey: 'email', header: 'Email' },
+];
+```
+
+## Column Types
+
+### Accessor Columns
+
+Use `accessorKey` for simple property access:
+
+```tsx
+const columns: ColumnDef<Person>[] = [
+  {
+    accessorKey: 'name',
+    header: 'Full Name',
+  },
+];
+```
+
+### Accessor Function Columns
+
+Use `accessorFn` for computed values:
+
+```tsx
+const columns: ColumnDef<Person>[] = [
+  {
+    id: 'fullName',
+    accessorFn: (row) => `${row.firstName} ${row.lastName}`,
+    header: 'Full Name',
+  },
+];
+```
+
+### Display Columns
+
+Display columns don't access data directly:
+
+```tsx
+const columns: ColumnDef<Person>[] = [
+  {
+    id: 'actions',
+    header: 'Actions',
+    cell: ({ row }) => (
+      <button onClick={() => handleEdit(row.original)}>
+        Edit
+      </button>
+    ),
+  },
+];
+```
+
+## Column Properties
+
+<ParamField path="accessorKey" type="keyof TData">
+  Property name to access data from each row
+</ParamField>
+
+<ParamField path="accessorFn" type="(row: TData) => any">
+  Function to compute cell value from row data
+</ParamField>
+
+<ParamField path="id" type="string">
+  Unique column identifier. Required when using `accessorFn` or display columns.
+</ParamField>
+
+<ParamField path="header" type="string | ((props) => ReactNode)">
+  Column header content. Can be a string or render function.
+</ParamField>
+
+<ParamField path="cell" type="(props) => ReactNode">
+  Custom cell renderer. Receives cell context with `row`, `getValue()`, etc.
+</ParamField>
+
+<ParamField path="meta" type="ColumnMeta">
+  Custom metadata for plugins. Used by FilterPlugin, ColumnControl, etc.
+</ParamField>
+
+<ParamField path="enableSorting" type="boolean" default="true">
+  Enable sorting for this column
+</ParamField>
+
+<ParamField path="enableColumnFilter" type="boolean" default="true">
+  Enable filtering for this column
+</ParamField>
+
+<ParamField path="sortingFn" type="SortingFn">
+  Custom sorting function
+</ParamField>
+
+<ParamField path="filterFn" type="FilterFn">
+  Custom filter function
+</ParamField>
+
+## Custom Cell Rendering
+
+Render custom cell content:
+
+```tsx
+const columns: ColumnDef<Person>[] = [
+  {
+    accessorKey: 'status',
+    header: 'Status',
+    cell: ({ getValue }) => {
+      const status = getValue() as string;
+      return (
+        <span className={`badge badge-${status}`}>
+          {status}
+        </span>
+      );
+    },
+  },
+];
+```
+
+Access the full row:
+
+```tsx
+const columns: ColumnDef<Person>[] = [
+  {
+    id: 'actions',
+    header: 'Actions',
+    cell: ({ row }) => (
+      <div>
+        <button onClick={() => handleEdit(row.original)}>Edit</button>
+        <button onClick={() => handleDelete(row.original)}>Delete</button>
+      </div>
+    ),
+  },
+];
+```
+
+## Custom Header Rendering
+
+Render custom header content:
+
+```tsx
+const columns: ColumnDef<Person>[] = [
+  {
+    accessorKey: 'name',
+    header: ({ column }) => (
+      <div className="flex items-center gap-2">
+        <span>Name</span>
+        {column.getIsSorted() && (
+          <span>{column.getIsSorted() === 'asc' ? '↑' : '↓'}</span>
+        )}
+      </div>
+    ),
+  },
+];
+```
+
+## Column Metadata
+
+The `meta` property is used by plugins to add functionality:
+
+### Filter Plugin
+
+```tsx
+const columns: ColumnDef<Person>[] = [
+  {
+    accessorKey: 'name',
+    header: 'Name',
+    meta: { filterType: 'string' as const },
+  },
+  {
+    accessorKey: 'age',
+    header: 'Age',
+    meta: { filterType: 'number' as const },
+  },
+  {
+    accessorKey: 'status',
+    header: 'Status',
+    meta: {
+      filterType: 'enum' as const,
+      filterEnumValues: ['active', 'inactive'],
+    },
+  },
+];
+```
+
+### Column Control Plugin
+
+```tsx
+const columns: ColumnDef<Person>[] = [
+  {
+    accessorKey: 'id',
+    header: 'ID',
+    meta: { columnControl: { hidden: true } },
+  },
+];
+```
+
+## Sorting
+
+Enable or disable sorting per column:
+
+```tsx
+const columns: ColumnDef<Person>[] = [
+  {
+    accessorKey: 'name',
+    header: 'Name',
+    enableSorting: true, // Default
+  },
+  {
+    accessorKey: 'actions',
+    header: 'Actions',
+    enableSorting: false,
+  },
+];
+```
+
+Custom sorting function:
+
+```tsx
+import { sortingFns } from '@tanstack/react-table';
+
+const columns: ColumnDef<Person>[] = [
+  {
+    accessorKey: 'date',
+    header: 'Date',
+    sortingFn: sortingFns.datetime,
+  },
+];
+```
+
+## Filtering
+
+Disable filtering per column:
+
+```tsx
+const columns: ColumnDef<Person>[] = [
+  {
+    accessorKey: 'name',
+    header: 'Name',
+    enableColumnFilter: true, // Default
+  },
+  {
+    accessorKey: 'actions',
+    header: 'Actions',
+    enableColumnFilter: false,
+  },
+];
+```
+
+## Type Safety
+
+Columns are fully type-safe when using TypeScript:
+
+```tsx
+type User = {
+  id: number;
+  name: string;
+  email: string;
+  role: 'admin' | 'user';
+};
+
+const columns: ColumnDef<User>[] = [
+  {
+    accessorKey: 'name', // ✅ Type-safe: 'name' exists on User
+    header: 'Name',
+  },
+  {
+    accessorKey: 'invalid', // ❌ Type error: 'invalid' doesn't exist
+    header: 'Invalid',
+  },
+  {
+    accessorKey: 'role',
+    header: 'Role',
+    cell: ({ getValue }) => {
+      const role = getValue() as 'admin' | 'user'; // Type-safe
+      return role === 'admin' ? 'Administrator' : 'User';
+    },
+  },
+];
+```
+
+## Advanced: flexRender
+
+For custom table rendering, use `flexRender` to render column content:
+
+```tsx
+import { flexRender } from '@izumisy/seizen-table';
+
+function CustomTable<TData>({ table }) {
+  const tanstack = table._tanstackTable;
+
+  return (
+    <table>
+      <thead>
+        {tanstack.getHeaderGroups().map((headerGroup) => (
+          <tr key={headerGroup.id}>
+            {headerGroup.headers.map((header) => (
+              <th key={header.id}>
+                {header.isPlaceholder
+                  ? null
+                  : flexRender(
+                      header.column.columnDef.header,
+                      header.getContext()
+                    )}
+              </th>
+            ))}
+          </tr>
+        ))}
+      </thead>
+      <tbody>
+        {tanstack.getRowModel().rows.map((row) => (
+          <tr key={row.id}>
+            {row.getVisibleCells().map((cell) => (
+              <td key={cell.id}>
+                {flexRender(cell.column.columnDef.cell, cell.getContext())}
+              </td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+```
+
+<Note>
+Seizen Table re-exports commonly used TanStack Table types like `ColumnDef`, `Row`, `Cell`, and `flexRender` for your convenience.
+</Note>

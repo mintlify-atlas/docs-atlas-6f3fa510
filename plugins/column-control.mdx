@@ -1,0 +1,241 @@
+---
+title: ColumnControlPlugin
+description: Column visibility controls and multi-column sorting with drag-and-drop reordering
+---
+
+The ColumnControlPlugin provides a side panel with two tabs: one for managing column visibility with drag-and-drop reordering, and another for multi-column sorting. It also adds context menu items to column headers for quick actions.
+
+## Installation
+
+```bash
+npm install @izumisy/seizen-table-plugins
+```
+
+## Import
+
+```tsx
+import { ColumnControlPlugin } from "@izumisy/seizen-table-plugins/column-control";
+```
+
+## Basic Usage
+
+```tsx
+import { useSeizenTable, SeizenTable } from "@izumisy/seizen-table";
+import { ColumnControlPlugin } from "@izumisy/seizen-table-plugins/column-control";
+
+function ProductsTable() {
+  const table = useSeizenTable({
+    data,
+    columns,
+    plugins: [ColumnControlPlugin.configure({ width: 280 })],
+  });
+
+  return <SeizenTable table={table} />;
+}
+```
+
+## Configuration
+
+<ParamField path="width" type="number" default="280">
+  Width of the column control side panel in pixels
+</ParamField>
+
+## Features
+
+### Visibility Tab
+
+The Visibility tab provides controls for managing which columns are displayed:
+
+- **Toggle column visibility** - Check/uncheck columns to show or hide them
+- **Search columns** - Filter the column list by name
+- **Drag & drop reordering** - Reorder columns by dragging them in the list
+
+<CodeGroup>
+```tsx Example
+import { useSeizenTable, SeizenTable } from "@izumisy/seizen-table";
+import { ColumnControlPlugin } from "@izumisy/seizen-table-plugins/column-control";
+
+function MyTable() {
+  const table = useSeizenTable({
+    data,
+    columns,
+    plugins: [ColumnControlPlugin.configure({ width: 280 })],
+  });
+
+  return <SeizenTable table={table} />;
+}
+```
+</CodeGroup>
+
+### Sorter Tab
+
+The Sorter tab enables multi-column sorting:
+
+- **Add/remove sorting** - Add or remove columns from the sort criteria
+- **Toggle direction** - Switch between ascending and descending order
+- **Drag & drop priority** - Reorder sort criteria to change sort priority
+- **Multi-column support** - Sort by multiple columns simultaneously
+
+<CodeGroup>
+```tsx Multi-Column Sorting
+// Users can add multiple sort criteria:
+// 1. Sort by status (ascending)
+// 2. Then by age (descending)
+// 3. Then by name (ascending)
+```
+</CodeGroup>
+
+## Context Menu Integration
+
+ColumnControlPlugin automatically adds these items to the column header context menu:
+
+<AccordionGroup>
+  <Accordion title="Hide column">
+    Quickly hide the clicked column without opening the side panel
+  </Accordion>
+  
+  <Accordion title="Sort ascending">
+    Sort the table by this column in ascending order
+  </Accordion>
+  
+  <Accordion title="Sort descending">
+    Sort the table by this column in descending order
+  </Accordion>
+  
+  <Accordion title="Clear sort">
+    Remove any sorting applied to this column
+  </Accordion>
+</AccordionGroup>
+
+## Programmatic Control
+
+You can control column visibility and sorting programmatically:
+
+### Opening the Panel
+
+```tsx
+function MyTable() {
+  const table = useSeizenTable({
+    data,
+    columns,
+    plugins: [ColumnControlPlugin.configure({ width: 280 })],
+  });
+
+  const openColumnControls = () => {
+    table.plugin.open("column-control");
+  };
+
+  return (
+    <div>
+      <button onClick={openColumnControls}>Customize Columns</button>
+      <SeizenTable table={table} />
+    </div>
+  );
+}
+```
+
+### Managing Column Visibility
+
+```tsx
+// Hide a column
+table.setColumnVisibility({ columnId: false });
+
+// Show a column
+table.setColumnVisibility({ columnId: true });
+
+// Get current visibility state
+const visibility = table.getState().columnVisibility;
+```
+
+### Managing Sorting
+
+```tsx
+// Set sorting
+table.setSorting([
+  { id: "status", desc: false },
+  { id: "age", desc: true },
+]);
+
+// Get current sorting
+const sorting = table.getState().sorting;
+```
+
+## Event Subscriptions
+
+Subscribe to sorting changes:
+
+```tsx
+import { useSeizenTableEvent } from "@izumisy/seizen-table";
+
+useSeizenTableEvent(table, "sorting-change", (sorting) => {
+  console.log("Sorting changed:", sorting);
+});
+```
+
+## Complete Example
+
+<CodeGroup>
+```tsx Complete Example
+import { useSeizenTable, SeizenTable, useSeizenTableEvent } from "@izumisy/seizen-table";
+import { ColumnControlPlugin } from "@izumisy/seizen-table-plugins/column-control";
+import type { ColumnDef } from "@izumisy/seizen-table";
+
+type Product = {
+  id: number;
+  name: string;
+  category: string;
+  price: number;
+  stock: number;
+  status: string;
+};
+
+const columns: ColumnDef<Product>[] = [
+  { accessorKey: "id", header: "ID" },
+  { accessorKey: "name", header: "Product Name" },
+  { accessorKey: "category", header: "Category" },
+  { accessorKey: "price", header: "Price" },
+  { accessorKey: "stock", header: "Stock" },
+  { accessorKey: "status", header: "Status" },
+];
+
+function ProductsTable({ products }: { products: Product[] }) {
+  const table = useSeizenTable({
+    data: products,
+    columns,
+    plugins: [ColumnControlPlugin.configure({ width: 280 })],
+  });
+
+  // Track sorting changes
+  useSeizenTableEvent(table, "sorting-change", (sorting) => {
+    console.log("Sort criteria:", sorting);
+  });
+
+  const openControls = () => {
+    table.plugin.open("column-control");
+  };
+
+  return (
+    <div>
+      <div className="toolbar">
+        <button onClick={openControls}>Customize Columns</button>
+      </div>
+      <SeizenTable table={table} />
+    </div>
+  );
+}
+```
+</CodeGroup>
+
+## Tips
+
+<Tip>
+  Users can right-click on any column header to quickly access sorting and visibility options without opening the side panel.
+</Tip>
+
+<Tip>
+  When using multi-column sorting, the order of sort criteria matters. Drag sort items in the Sorter tab to change priority.
+</Tip>
+
+<Warning>
+  Column reordering is visual only and does not affect the underlying data structure or column definitions.
+</Warning>

@@ -1,0 +1,603 @@
+---
+title: Core Types
+description: TypeScript type definitions for Seizen Table core API
+icon: code
+---
+
+Complete type reference for Seizen Table's core functionality.
+
+## Hook Types
+
+### UseSeizenTableOptions
+
+Options passed to the `useSeizenTable` hook.
+
+```tsx
+interface UseSeizenTableOptions<TData> {
+  data: TData[];
+  columns: SeizenTableColumn<TData>[];
+  plugins?: SeizenTablePlugin<any>[];
+  initialSelection?: RowSelectionState;
+  enableMultiSelect?: boolean;
+  remote?: boolean | RemoteOptions;
+}
+```
+
+<ParamField path="data" type="TData[]" required>
+  Array of row data.
+</ParamField>
+
+<ParamField path="columns" type="SeizenTableColumn<TData>[]" required>
+  Column definitions (TanStack Table `ColumnDef`).
+</ParamField>
+
+<ParamField path="plugins" type="SeizenTablePlugin<any>[]">
+  Array of plugins to extend table functionality.
+</ParamField>
+
+<ParamField path="initialSelection" type="RowSelectionState">
+  Initial row selection state: `{ [rowIndex: number]: boolean }`
+</ParamField>
+
+<ParamField path="enableMultiSelect" type="boolean">
+  Enable multi-row selection (default: `true`).
+</ParamField>
+
+<ParamField path="remote" type="boolean | RemoteOptions">
+  Remote Mode configuration (default: `false`).
+</ParamField>
+
+### SeizenTableInstance
+
+Return type of `useSeizenTable` hook.
+
+```tsx
+interface SeizenTableInstance<TData> {
+  // Selection
+  getSelectedRows: () => TData[];
+  setSelectedRows: (rows: TData[]) => void;
+  clearSelection: () => void;
+
+  // Filtering
+  getFilterState: () => ColumnFiltersState;
+  setFilter: (filter: ColumnFiltersState) => void;
+  getGlobalFilter: () => string;
+  setGlobalFilter: (value: string) => void;
+
+  // Sorting
+  getSortingState: () => SortingState;
+  setSorting: (sorting: SortingState) => void;
+
+  // Pagination
+  getPaginationState: () => PaginationState;
+  setPageIndex: (index: number) => void;
+  setPageSize: (size: number) => void;
+
+  // Data
+  getData: () => TData[];
+  getColumns: () => SeizenTableColumn<TData>[];
+
+  // Column Visibility
+  getColumnVisibility: () => VisibilityState;
+  setColumnVisibility: (visibility: VisibilityState) => void;
+  toggleColumnVisibility: (columnId: string) => void;
+
+  // Column Order
+  getColumnOrder: () => ColumnOrderState;
+  setColumnOrder: (order: ColumnOrderState) => void;
+  moveColumn: (columnId: string, toIndex: number) => void;
+
+  // Plugins
+  plugins: Array<SeizenTablePlugin<any>>;
+  plugin: PluginControl;
+
+  // Event Bus
+  eventBus: EventBus;
+
+  // Remote Mode
+  readonly remote: boolean | RemoteOptions;
+
+  // Advanced
+  _tanstackTable: Table<TData>;
+}
+```
+
+See [useSeizenTable](/api/use-seizen-table) for detailed method documentation.
+
+### RemoteOptions
+
+Configuration for Remote Mode with pagination.
+
+```tsx
+interface RemoteOptions {
+  /**
+   * Total row count for pagination calculation.
+   * Required when using pagination in Remote Mode.
+   */
+  totalRowCount: number;
+}
+```
+
+**Usage:**
+```tsx
+const table = useSeizenTable({
+  data,
+  columns,
+  remote: { totalRowCount: 1000 },
+});
+```
+
+## Column Types
+
+### SeizenTableColumn
+
+Column definition type (alias for TanStack Table's `ColumnDef`).
+
+```tsx
+type SeizenTableColumn<TData> = ColumnDef<TData, unknown>;
+```
+
+**Common properties:**
+
+```tsx
+interface ColumnDef<TData> {
+  // Data access
+  accessorKey?: keyof TData; // Simple property accessor
+  accessorFn?: (row: TData) => unknown; // Custom accessor function
+  id?: string; // Unique column ID (required if no accessorKey)
+
+  // Display
+  header?: string | ((props: HeaderContext<TData>) => React.ReactNode);
+  cell?: (props: CellContext<TData>) => React.ReactNode;
+  footer?: string | ((props: HeaderContext<TData>) => React.ReactNode);
+
+  // Features
+  enableSorting?: boolean;
+  enableFiltering?: boolean;
+  enableHiding?: boolean;
+  enableResizing?: boolean;
+
+  // Metadata (for plugins)
+  meta?: {
+    filterType?: FilterType;
+    filterOperators?: FilterOperator[];
+    label?: string;
+    // ... custom meta fields
+  };
+
+  // ... many more options
+}
+```
+
+See [TanStack Table Column Def](https://tanstack.com/table/v8/docs/api/core/column-def) for complete documentation.
+
+## Component Types
+
+### SeizenTableProps
+
+Props for the high-level `<SeizenTable>` component.
+
+```tsx
+interface SeizenTableProps<TData> {
+  table: SeizenTableInstance<TData>;
+  className?: string;
+  paginate?: PaginateOptions;
+  loading?: boolean;
+  loaderComponent?: React.ReactNode;
+}
+```
+
+See [SeizenTable](/api/seizen-table) for details.
+
+### PaginateOptions
+
+Pagination configuration for `<SeizenTable>`.
+
+```tsx
+interface PaginateOptions {
+  /**
+   * Whether to enable pagination
+   * @default true
+   */
+  enable?: boolean;
+
+  /**
+   * Page size options to display in the paginator dropdown
+   * @default [10, 20, 50, 100]
+   */
+  sizeOptions?: number[];
+}
+```
+
+### LoaderProps
+
+Props for the `<SeizenTable.Loader>` component.
+
+```tsx
+interface LoaderProps {
+  /**
+   * Whether to show the loading overlay
+   * @default true
+   */
+  loading?: boolean;
+
+  /**
+   * Custom loader component. Defaults to a built-in spinner.
+   */
+  children?: React.ReactNode;
+}
+```
+
+### PaginatorProps
+
+Props for the `<Paginator>` component.
+
+```tsx
+interface PaginatorProps<TData> {
+  table: SeizenTableInstance<TData>;
+  sizeOptions?: number[];
+  showPageSizeSelector?: boolean;
+  showPageInfo?: boolean;
+}
+```
+
+See [Paginator](/api/paginator) for details.
+
+## State Types
+
+These types are re-exported from TanStack Table for convenience.
+
+### RowSelectionState
+
+Row selection state mapping row indices to selection status.
+
+```tsx
+type RowSelectionState = {
+  [rowIndex: number]: boolean;
+};
+```
+
+**Example:**
+```tsx
+const selection: RowSelectionState = {
+  0: true,  // First row selected
+  2: true,  // Third row selected
+};
+```
+
+### ColumnFiltersState
+
+Column filter state.
+
+```tsx
+type ColumnFiltersState = Array<{
+  id: string;        // Column ID
+  value: unknown;    // Filter value (plugin-specific)
+}>;
+```
+
+**Example:**
+```tsx
+const filters: ColumnFiltersState = [
+  { id: "age", value: { min: 25, max: 40 } },
+  { id: "status", value: ["active", "pending"] },
+];
+```
+
+### SortingState
+
+Sorting state.
+
+```tsx
+type SortingState = Array<{
+  id: string;      // Column ID
+  desc: boolean;   // true = descending, false = ascending
+}>;
+```
+
+**Example:**
+```tsx
+const sorting: SortingState = [
+  { id: "age", desc: true },      // Sort by age descending
+  { id: "name", desc: false },    // Then by name ascending
+];
+```
+
+### PaginationState
+
+Pagination state.
+
+```tsx
+interface PaginationState {
+  pageIndex: number;  // Current page (0-based)
+  pageSize: number;   // Rows per page
+}
+```
+
+**Example:**
+```tsx
+const pagination: PaginationState = {
+  pageIndex: 2,   // Page 3 (0-based)
+  pageSize: 20,   // 20 rows per page
+};
+```
+
+### VisibilityState
+
+Column visibility state.
+
+```tsx
+type VisibilityState = {
+  [columnId: string]: boolean;  // true = visible, false = hidden
+};
+```
+
+**Example:**
+```tsx
+const visibility: VisibilityState = {
+  email: false,    // Hide email column
+  phone: false,    // Hide phone column
+  // Unlisted columns default to visible
+};
+```
+
+### ColumnOrderState
+
+Column order state.
+
+```tsx
+type ColumnOrderState = string[];  // Array of column IDs in order
+```
+
+**Example:**
+```tsx
+const order: ColumnOrderState = [
+  "name",
+  "email",
+  "age",
+  "status",
+];
+```
+
+## Plugin Types
+
+### PluginControl
+
+Interface for controlling plugin side panels.
+
+```tsx
+interface PluginControl {
+  open: <K extends keyof PluginArgsRegistry>(
+    pluginId: K,
+    args: PluginArgsRegistry[K]
+  ) => void;
+  close: () => void;
+  setActive: (pluginId: string | null | undefined) => void;
+  isOpen: (pluginId: string) => boolean;
+  getActiveId: () => string | null;
+  _state: PluginInternalState; // Internal
+}
+```
+
+**Example:**
+```tsx
+// Open plugin with type-safe args
+table.plugin.open("row-detail", { row: data[0] });
+
+// Close current plugin
+table.plugin.close();
+
+// Check if plugin is open
+if (table.plugin.isOpen("row-detail")) {
+  console.log("Row detail is open");
+}
+```
+
+### PluginArgsRegistry
+
+Extend this interface to register type-safe plugin args.
+
+```tsx
+interface PluginArgsRegistry {
+  // Empty by default - plugins extend via module augmentation
+}
+```
+
+**Module augmentation example:**
+```tsx
+// In your plugin file
+declare module "@izumisy/seizen-table/plugin" {
+  interface PluginArgsRegistry {
+    "my-plugin": { row: MyRowType; mode: "view" | "edit" };
+  }
+}
+
+// Now type-safe!
+table.plugin.open("my-plugin", { row, mode: "view" });
+```
+
+## Event Bus Types
+
+### EventBus
+
+Event bus interface for plugin communication.
+
+```tsx
+interface EventBus {
+  emit: <K extends SeizenTableEventName | (string & {})>(
+    event: K,
+    payload: K extends SeizenTableEventName ? SeizenTableEventMap[K] : unknown
+  ) => void;
+  
+  subscribe: <K extends SeizenTableEventName | (string & {})>(
+    event: K,
+    callback: (payload: K extends SeizenTableEventName ? SeizenTableEventMap[K] : unknown) => void
+  ) => () => void; // Returns unsubscribe function
+}
+```
+
+**Example:**
+```tsx
+// Subscribe to built-in event (type-safe)
+const unsubscribe = table.eventBus.subscribe("selection-change", (rows) => {
+  console.log("Selected:", rows); // rows is typed as TData[]
+});
+
+// Emit custom event
+table.eventBus.emit("custom-event", { data: "value" });
+
+// Cleanup
+unsubscribe();
+```
+
+### SeizenTableEventMap
+
+Map of built-in event names to their payload types.
+
+```tsx
+interface SeizenTableEventMap<TData = unknown> {
+  "data-change": TData[];
+  "selection-change": TData[];
+  "filter-change": ColumnFiltersState;
+  "sorting-change": SortingState;
+  "pagination-change": PaginationState;
+  "row-click": TData;
+  "cell-context-menu": {
+    cell: Cell<TData, unknown>;
+    column: Column<TData, unknown>;
+    row: Row<TData>;
+    value: unknown;
+  };
+  "column-context-menu": {
+    column: Column<TData, unknown>;
+  };
+}
+```
+
+### EventBusRegistry
+
+Extend this interface to register custom events.
+
+```tsx
+interface EventBusRegistry {
+  // Empty by default - plugins extend via module augmentation
+}
+```
+
+**Module augmentation example:**
+```tsx
+declare module "@izumisy/seizen-table/plugin" {
+  interface EventBusRegistry {
+    "my-plugin:action": { itemId: string; action: "create" | "delete" };
+    "my-plugin:complete": { success: boolean };
+  }
+}
+
+// Now type-safe!
+table.eventBus.emit("my-plugin:action", { itemId: "123", action: "create" });
+```
+
+## TanStack Table Re-exports
+
+Seizen Table re-exports useful types from TanStack Table:
+
+```tsx
+import type {
+  ColumnDef,
+  Row,
+  Cell,
+  Header,
+  HeaderGroup,
+  Table,
+  Column,
+  // ... state types listed above
+} from "@izumisy/seizen-table";
+```
+
+See [TanStack Table API](https://tanstack.com/table/v8/docs/api/core/table) for complete documentation.
+
+## Utility Types
+
+### Type Safety with Generics
+
+All Seizen Table types are generic over `TData` for full type safety:
+
+```tsx
+interface User {
+  id: number;
+  name: string;
+  email: string;
+  role: "admin" | "user";
+}
+
+// Type is inferred throughout
+const table = useSeizenTable<User>({
+  data: users,
+  columns: [
+    { accessorKey: "name" },      // ✅ Type-safe
+    { accessorKey: "invalid" },   // ❌ Type error
+  ],
+});
+
+const selected: User[] = table.getSelectedRows(); // ✅ Typed as User[]
+
+table.eventBus.subscribe("selection-change", (rows) => {
+  // rows is typed as User[]
+  console.log(rows[0].name);
+});
+```
+
+### Module Augmentation
+
+Seizen Table supports TypeScript module augmentation for type-safe plugins:
+
+```tsx
+// my-plugin.tsx
+import type { } from "@izumisy/seizen-table/plugin";
+
+declare module "@izumisy/seizen-table/plugin" {
+  // Register plugin args
+  interface PluginArgsRegistry {
+    "my-plugin": { row: User; mode: "view" | "edit" };
+  }
+
+  // Register custom events
+  interface EventBusRegistry {
+    "my-plugin:save": { userId: number };
+  }
+}
+
+// Now fully type-safe!
+table.plugin.open("my-plugin", { row: user, mode: "view" });
+table.eventBus.emit("my-plugin:save", { userId: 123 });
+```
+
+## Import Paths
+
+```tsx
+// Core types
+import type {
+  SeizenTableColumn,
+  SeizenTableInstance,
+  UseSeizenTableOptions,
+  RemoteOptions,
+  // ... component types
+} from "@izumisy/seizen-table";
+
+// Plugin types
+import type {
+  SeizenTablePlugin,
+  PluginContext,
+  PluginArgsRegistry,
+  EventBusRegistry,
+  // ... plugin types
+} from "@izumisy/seizen-table/plugin";
+
+// TanStack Table types (re-exported)
+import type {
+  ColumnDef,
+  Row,
+  Cell,
+  Table,
+} from "@izumisy/seizen-table";
+```

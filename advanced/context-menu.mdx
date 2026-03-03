@@ -1,0 +1,448 @@
+---
+title: Context Menu System
+description: Add right-click context menus to table cells and column headers
+---
+
+Seizen Table includes a built-in context menu system that allows plugins to add custom actions when users right-click on cells or column headers. The context menu API provides full type safety and access to table state.
+
+## Context Menu Types
+
+Seizen Table supports two types of context menus:
+
+| Type | Triggered On | Use Cases |
+|------|-------------|----------|
+| **Cell Context Menu** | Right-click on a table cell | Copy value, filter by value, edit cell, custom actions |
+| **Column Context Menu** | Right-click on a column header | Sort column, hide column, pin column, column settings |
+
+## Adding Context Menu Items to Plugins
+
+Context menu items are defined in the `contextMenuItems` property of your plugin:
+
+```tsx
+import { definePlugin, cellContextMenuItem, columnContextMenuItem } from "@izumisy/seizen-table/plugin";
+
+const MyPlugin = definePlugin({
+  id: "my-plugin",
+  name: "My Plugin",
+  args: MySchema,
+  slots: { /* ... */ },
+  contextMenuItems: {
+    cell: [
+      cellContextMenuItem("copy-value", (ctx) => ({
+        label: "Copy value",
+        onClick: () => navigator.clipboard.writeText(String(ctx.value)),
+      })),
+    ],
+    column: [
+      columnContextMenuItem("hide-column", (ctx) => ({
+        label: "Hide column",
+        onClick: () => ctx.column.toggleVisibility(false),
+      })),
+    ],
+  },
+});
+```
+
+## Cell Context Menu
+
+### cellContextMenuItem API
+
+Create cell context menu items using the `cellContextMenuItem` helper:
+
+```tsx
+cellContextMenuItem<TData, TArgs>(
+  id: string,
+  factory: (ctx: CellContextMenuItemContext<TData, TArgs>) => ContextMenuItemEntry
+)
+```
+
+### Cell Context
+
+The factory function receives a context object with these properties:
+
+```tsx
+interface CellContextMenuItemContext<TData, TArgs> {
+  cell: Cell<TData, unknown>;        // The cell that was right-clicked
+  column: Column<TData, unknown>;    // The column of the cell
+  row: Row<TData>;                   // The row containing the cell
+  value: unknown;                    // The raw cell value (cell.getValue())
+  selectedRows: TData[];             // Currently selected rows
+  table: Table<TData>;               // TanStack Table instance
+  pluginArgs: TArgs;                 // Plugin configuration args
+  emit: EventBus["emit"];            // Emit custom events
+}
+```
+
+### Cell Context Menu Examples
+
+#### Copy Cell Value
+
+```tsx
+cellContextMenuItem("copy-value", (ctx) => ({
+  label: "Copy value",
+  onClick: () => {
+    navigator.clipboard.writeText(String(ctx.value ?? ""));
+  },
+  visible: ctx.value != null,  // Only show if cell has a value
+}))
+```
+
+#### Filter by Cell Value
+
+```tsx
+cellContextMenuItem("filter-by-value", (ctx) => ({
+  label: `Filter by "${ctx.value}"`,
+  onClick: () => {
+    ctx.column.setFilterValue(ctx.value);
+  },
+  visible: ctx.column.getCanFilter(),
+}))
+```
+
+#### Conditional Menu Item with Icon
+
+```tsx
+cellContextMenuItem("mark-important", (ctx) => ({
+  label: "Mark as important",
+  icon: <StarIcon />,
+  onClick: () => {
+    // Update row data
+    updateRow(ctx.row.id, { important: true });
+  },
+  disabled: ctx.row.original.important === true,
+}))
+```
+
+## Column Context Menu
+
+### columnContextMenuItem API
+
+Create column context menu items using the `columnContextMenuItem` helper:
+
+```tsx
+columnContextMenuItem<TData, TArgs>(
+  id: string,
+  factory: (ctx: ColumnContextMenuItemContext<TData, TArgs>) => ContextMenuItemEntry
+)
+```
+
+### Column Context
+
+The factory function receives a context object with these properties:
+
+```tsx
+interface ColumnContextMenuItemContext<TData, TArgs> {
+  column: Column<TData, unknown>;    // The column header that was right-clicked
+  table: Table<TData>;               // TanStack Table instance
+  pluginArgs: TArgs;                 // Plugin configuration args
+  emit: EventBus["emit"];            // Emit custom events
+}
+```
+
+### Column Context Menu Examples
+
+#### Hide Column
+
+```tsx
+columnContextMenuItem("hide-column", (ctx) => ({
+  label: "Hide column",
+  onClick: () => {
+    ctx.column.toggleVisibility(false);
+  },
+}))
+```
+
+#### Sort Column
+
+```tsx
+columnContextMenuItem("sort-asc", (ctx) => ({
+  label: "Sort ascending",
+  onClick: () => {
+    ctx.column.toggleSorting(false);  // false = ascending
+  },
+  visible: ctx.column.getCanSort(),
+}))
+```
+
+```tsx
+columnContextMenuItem("sort-desc", (ctx) => ({
+  label: "Sort descending",
+  onClick: () => {
+    ctx.column.toggleSorting(true);  // true = descending
+  },
+  visible: ctx.column.getCanSort(),
+}))
+```
+
+#### Pin Column
+
+```tsx
+columnContextMenuItem("pin-left", (ctx) => ({
+  label: "Pin to left",
+  onClick: () => {
+    ctx.column.pin("left");
+  },
+  visible: ctx.column.getCanPin(),
+}))
+```
+
+## Menu Item Properties
+
+Each context menu item can have these properties:
+
+```tsx
+interface ContextMenuItemEntry {
+  label: string;           // Display text
+  icon?: ReactNode;        // Optional icon component
+  onClick: () => void;     // Click handler
+  visible?: boolean;       // Show/hide item (default: true)
+  disabled?: boolean;      // Disable item (default: false)
+}
+```
+
+<Steps>
+  <Step title="Label">
+    Required display text for the menu item
+  </Step>
+  
+  <Step title="Icon (optional)">
+    React component to display alongside the label
+  </Step>
+  
+  <Step title="onClick">
+    Function called when the item is clicked
+  </Step>
+  
+  <Step title="Visible (optional)">
+    Boolean to show/hide the item based on context
+  </Step>
+  
+  <Step title="Disabled (optional)">
+    Boolean to disable the item (shown but not clickable)
+  </Step>
+</Steps>
+
+## Complete Plugin Example with Context Menus
+
+Here's a complete plugin that adds both cell and column context menu items:
+
+```tsx
+import { z } from "zod";
+import {
+  definePlugin,
+  cellContextMenuItem,
+  columnContextMenuItem,
+  usePluginContext,
+} from "@izumisy/seizen-table/plugin";
+import { CopyIcon, FilterIcon, HideIcon, SortIcon } from "./icons";
+
+const ContextMenuPluginSchema = z.object({
+  enableCopy: z.boolean().default(true),
+  enableFilter: z.boolean().default(true),
+});
+
+const ContextMenuPlugin = definePlugin({
+  id: "context-menu-plugin",
+  name: "Context Menu Plugin",
+  args: ContextMenuPluginSchema,
+  slots: {},  // This plugin only adds context menu items
+  contextMenuItems: {
+    // Cell context menu items
+    cell: [
+      cellContextMenuItem("copy-value", (ctx) => ({
+        label: "Copy",
+        icon: <CopyIcon />,
+        onClick: () => {
+          navigator.clipboard.writeText(String(ctx.value ?? ""));
+        },
+        visible: ctx.pluginArgs.enableCopy && ctx.value != null,
+      })),
+      
+      cellContextMenuItem("filter-by-value", (ctx) => ({
+        label: `Filter by "${ctx.value}"`,
+        icon: <FilterIcon />,
+        onClick: () => {
+          ctx.column.setFilterValue(ctx.value);
+        },
+        visible: ctx.pluginArgs.enableFilter && ctx.column.getCanFilter(),
+      })),
+    ],
+    
+    // Column context menu items
+    column: [
+      columnContextMenuItem("sort-asc", (ctx) => ({
+        label: "Sort A-Z",
+        icon: <SortIcon direction="asc" />,
+        onClick: () => ctx.column.toggleSorting(false),
+        visible: ctx.column.getCanSort(),
+      })),
+      
+      columnContextMenuItem("sort-desc", (ctx) => ({
+        label: "Sort Z-A",
+        icon: <SortIcon direction="desc" />,
+        onClick: () => ctx.column.toggleSorting(true),
+        visible: ctx.column.getCanSort(),
+      })),
+      
+      columnContextMenuItem("hide-column", (ctx) => ({
+        label: "Hide column",
+        icon: <HideIcon />,
+        onClick: () => ctx.column.toggleVisibility(false),
+      })),
+    ],
+  },
+});
+
+// Usage
+function App() {
+  return (
+    <SeizenTable
+      data={data}
+      columns={columns}
+      plugins={[
+        ContextMenuPlugin.configure({
+          enableCopy: true,
+          enableFilter: true,
+        })
+      ]}
+    />
+  );
+}
+```
+
+## Using Context Menu Handlers in Custom Rendering
+
+If you're using custom table rendering, you can access context menu handlers with the `useContextMenuHandlers` hook:
+
+```tsx
+import { useContextMenuHandlers } from "@izumisy/seizen-table/plugin";
+
+function CustomTable<TData>(props) {
+  const handlers = useContextMenuHandlers<TData>();
+  const tanstack = table._tanstackTable;
+
+  return (
+    <table>
+      <thead>
+        {tanstack.getHeaderGroups().map((headerGroup) => (
+          <tr key={headerGroup.id}>
+            {headerGroup.headers.map((header) => (
+              <th
+                key={header.id}
+                onContextMenu={(e) => handlers.handleColumnContextMenu(e, header.column)}
+              >
+                {flexRender(header.column.columnDef.header, header.getContext())}
+              </th>
+            ))}
+          </tr>
+        ))}
+      </thead>
+      <tbody>
+        {tanstack.getRowModel().rows.map((row) => (
+          <tr key={row.id}>
+            {row.getVisibleCells().map((cell) => (
+              <td
+                key={cell.id}
+                onContextMenu={(e) =>
+                  handlers.handleCellContextMenu(e, cell, cell.column, row)
+                }
+              >
+                {flexRender(cell.column.columnDef.cell, cell.getContext())}
+              </td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+```
+
+<Note>
+  The `useContextMenuHandlers` hook must be used within a `SeizenTable.Root` or `ContextMenuProvider` component. It automatically prevents the default browser context menu and positions the custom menu.
+</Note>
+
+## Built-in Context Menu Items
+
+Seizen Table includes a default "Copy" action for cell context menus. Plugin items are grouped by plugin name in the menu:
+
+```
+[Built-in]
+  Copy
+
+[My Plugin]
+  Filter by value
+  Mark as important
+
+[Another Plugin]
+  Export row
+```
+
+## Best Practices
+
+<Warning>
+  **Avoid side effects in factory functions:** The factory function may be called multiple times. Keep it pure and only return the menu item configuration.
+  
+  ```tsx
+  // Bad - side effect in factory
+  cellContextMenuItem("bad", (ctx) => {
+    console.log(ctx.value);  // Don't do this
+    return { label: "Bad", onClick: () => {} };
+  })
+  
+  // Good - side effects in onClick
+  cellContextMenuItem("good", (ctx) => ({
+    label: "Good",
+    onClick: () => {
+      console.log(ctx.value);  // Do this
+    },
+  }))
+  ```
+</Warning>
+
+<Note>
+  **Use visibility wisely:** Hide menu items that don't apply to the current context rather than showing disabled items:
+  
+  ```tsx
+  visible: ctx.column.getCanSort()  // Hide if column can't be sorted
+  ```
+</Note>
+
+## Exported Types
+
+The context menu API exports these types from `@izumisy/seizen-table/plugin`:
+
+```tsx
+export type {
+  // Menu item types
+  ContextMenuItemEntry,
+  
+  // Cell context menu
+  CellContextMenuItemContext,
+  CellContextMenuItemFactory,
+  
+  // Column context menu
+  ColumnContextMenuItemContext,
+  ColumnContextMenuItemFactory,
+};
+
+export {
+  // Factory functions
+  cellContextMenuItem,
+  columnContextMenuItem,
+  
+  // Hooks
+  useContextMenuHandlers,
+};
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Plugin Development" icon="puzzle-piece" href="/advanced/plugin-development">
+    Learn more about creating plugins
+  </Card>
+  <Card title="Event Bus" icon="tower-broadcast" href="/core-concepts/events">
+    Emit custom events from context menu actions
+  </Card>
+</CardGroup>

@@ -1,0 +1,109 @@
+---
+title: Introduction to Seizen Table
+description: A rich, enterprise-grade Table component for React, powered by TanStack Table
+---
+
+# Seizen Table
+
+A rich, enterprise-grade Table component for React, powered by [TanStack Table](https://tanstack.com/table).
+
+Seizen Table provides everything you need to build powerful data tables with minimal code. From simple data displays to complex enterprise applications with filtering, sorting, pagination, and custom plugins.
+
+## Why Seizen Table?
+
+<CardGroup cols={2}>
+  <Card title="CSS Variables Theming" icon="palette" href="/core-concepts/theming">
+    Customize appearance by simply defining CSS variables. No complex styling configuration needed.
+  </Card>
+  
+  <Card title="TypeScript First" icon="code" href="/api-reference/types">
+    Full type safety out of the box with comprehensive TypeScript support.
+  </Card>
+  
+  <Card title="Data Adapters" icon="plug" href="/data-adapters/overview">
+    Connect to Supabase, Firestore, Hasura, and more with zero boilerplate.
+  </Card>
+  
+  <Card title="Plugin System" icon="puzzle-piece" href="/plugins/overview">
+    Add search panels, side panels, column customization with a single line.
+  </Card>
+  
+  <Card title="Built-in Pagination" icon="table" href="/core-concepts/pagination">
+    Both offset-based and cursor-based pagination supported out of the box.
+  </Card>
+  
+  <Card title="Event Bus" icon="tower-broadcast" href="/core-concepts/events">
+    Subscribe to table events and plugin-defined custom events with full type safety.
+  </Card>
+</CardGroup>
+
+## Key Features
+
+### The Hook + Component Pattern
+
+Seizen Table uses a unique pattern where `useSeizenTable` and `SeizenTable` work together:
+
+```tsx
+function App() {
+  const table = useSeizenTable({ data, columns });
+  return <SeizenTable table={table} />;
+}
+```
+
+This pattern provides:
+- **Full control** - Access table state and methods from the hook
+- **Flexibility** - Trigger actions from outside the table component  
+- **Composability** - Share table instance across multiple components
+
+### Enterprise-Ready
+
+Built for serious applications that need:
+- Row selection with bulk actions
+- Advanced filtering and sorting
+- Custom cell rendering
+- Remote data integration
+- Plugin extensibility
+- Event-driven architecture
+
+## Quick Example
+
+Here's a complete working table in just a few lines:
+
+```tsx
+import { useSeizenTable, SeizenTable, type ColumnDef } from "@izumisy/seizen-table";
+import "@izumisy/seizen-table/styles.css";
+
+type Person = {
+  name: string;
+  age: number;
+  email: string;
+};
+
+const columns: ColumnDef<Person>[] = [
+  { accessorKey: "name", header: "Name" },
+  { accessorKey: "age", header: "Age" },
+  { accessorKey: "email", header: "Email" },
+];
+
+const data: Person[] = [
+  { name: "John Doe", age: 30, email: "john@example.com" },
+  { name: "Jane Smith", age: 25, email: "jane@example.com" },
+];
+
+function App() {
+  const table = useSeizenTable({ data, columns });
+  return <SeizenTable table={table} />;
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/get-started/installation">
+    Install Seizen Table and get your environment set up
+  </Card>
+  
+  <Card title="Quick Start" icon="rocket" href="/get-started/quickstart">
+    Build your first table in under 5 minutes
+  </Card>
+</CardGroup>

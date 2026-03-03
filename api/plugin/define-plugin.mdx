@@ -1,0 +1,280 @@
+---
+title: definePlugin
+description: Create type-safe plugins with validated configuration
+---
+
+## Overview
+
+The `definePlugin` function creates a plugin factory with type-safe configuration validation using Zod schemas. It returns a plugin factory with a `configure` method that validates runtime configuration.
+
+## Import
+
+```tsx
+import { definePlugin } from "@izumisy/seizen-table/plugin";
+```
+
+## Type Signature
+
+```typescript
+function definePlugin<TData, TSchema extends z.ZodType>(
+  options: DefinePluginOptions<TData, TSchema>
+): {
+  configure: (config: z.input<TSchema>) => SeizenTablePlugin<TData>
+}
+```
+
+## Parameters
+
+<ParamField path="options" type="DefinePluginOptions<TData, TSchema>" required>
+  Plugin configuration options
+
+  <Expandable title="properties">
+    <ParamField path="id" type="string" required>
+      Unique plugin identifier
+    </ParamField>
+
+    <ParamField path="name" type="string" required>
+      Plugin display name (used as vertical tab label for side panel plugins)
+    </ParamField>
+
+    <ParamField path="args" type="ZodType" required>
+      Zod schema for configuration validation
+    </ParamField>
+
+    <ParamField path="slots" type="DefinePluginSlots<TData, TSchema>" required>
+      Slot render configurations
+
+      <Expandable title="slot types">
+        <ParamField path="sidePanel" type="object">
+          IDE-style vertical tab side panel
+
+          <Expandable title="properties">
+            <ParamField path="position" type="'left-sider' | 'right-sider'" required>
+              Panel position
+            </ParamField>
+
+            <ParamField path="header" type="string | ((context: PluginContext<TArgs>) => ReactNode)">
+              Header content displayed at the top of the panel
+            </ParamField>
+
+            <ParamField path="render" type="() => ReactNode" required>
+              Render function. Use `usePluginArgs()` inside to access configuration.
+            </ParamField>
+          </Expandable>
+        </ParamField>
+
+        <ParamField path="header" type="object">
+          Renders between table header and body rows
+
+          <Expandable title="properties">
+            <ParamField path="render" type="() => ReactNode" required>
+              Render function. Use `usePluginArgs()` inside to access configuration.
+            </ParamField>
+          </Expandable>
+        </ParamField>
+
+        <ParamField path="footer" type="object">
+          Renders below the table
+
+          <Expandable title="properties">
+            <ParamField path="render" type="() => ReactNode" required>
+              Render function. Use `usePluginArgs()` inside to access configuration.
+            </ParamField>
+          </Expandable>
+        </ParamField>
+
+        <ParamField path="cell" type="object">
+          Custom cell renderer for all columns (first match wins)
+
+          <Expandable title="properties">
+            <ParamField path="render" type="(cell, column, row) => ReactNode" required>
+              Render function receiving TanStack Table primitives. Use `usePluginArgs()` inside to access configuration.
+            </ParamField>
+          </Expandable>
+        </ParamField>
+
+        <ParamField path="inlineRow" type="object">
+          Renders below a specific row when opened (first match wins)
+
+          <Expandable title="properties">
+            <ParamField path="render" type="(row: Row<TData>) => ReactNode" required>
+              Render function receiving the row. Use `usePluginArgs()` inside to access configuration.
+            </ParamField>
+          </Expandable>
+        </ParamField>
+      </Expandable>
+    </ParamField>
+
+    <ParamField path="contextMenuItems" type="ContextMenuItemsSlot<TData>">
+      Context menu items for cells and columns
+
+      <Expandable title="properties">
+        <ParamField path="cell" type="CellContextMenuItemFactory[]">
+          Cell context menu items - shown when right-clicking a cell
+        </ParamField>
+
+        <ParamField path="column" type="ColumnContextMenuItemFactory[]">
+          Column context menu items - shown when right-clicking a column header
+        </ParamField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Returns
+
+<ResponseField name="configure" type="(config: z.input<TSchema>) => SeizenTablePlugin<TData>">
+  Function that validates configuration and returns a plugin instance
+</ResponseField>
+
+## Example: Side Panel Plugin
+
+```tsx
+import { z } from "zod";
+import { definePlugin, usePluginContext, usePluginArgs } from "@izumisy/seizen-table/plugin";
+
+// Define configuration schema
+const BulkActionsSchema = z.object({
+  enableDelete: z.boolean().default(true),
+  enableExport: z.boolean().default(true),
+});
+
+type BulkActionsConfig = z.infer<typeof BulkActionsSchema>;
+
+// Create panel component
+function BulkActionsPanel() {
+  const args = usePluginArgs<BulkActionsConfig>();
+  const { selectedRows } = usePluginContext();
+
+  if (selectedRows.length === 0) {
+    return <div>No rows selected</div>;
+  }
+
+  return (
+    <div className="bulk-actions">
+      <span>{selectedRows.length} selected</span>
+      {args.enableDelete && <button>Delete</button>}
+      {args.enableExport && <button>Export</button>}
+    </div>
+  );
+}
+
+// Define plugin
+export const BulkActionsPlugin = definePlugin({
+  id: "bulk-actions",
+  name: "Bulk Actions",
+  args: BulkActionsSchema,
+  slots: {
+    sidePanel: {
+      position: "right-sider",
+      header: "Bulk Actions",
+      render: BulkActionsPanel,
+    },
+  },
+});
+
+// Usage
+<SeizenTable
+  plugins={[
+    BulkActionsPlugin.configure({
+      enableDelete: true,
+      enableExport: false,
+    })
+  ]}
+/>
+```
+
+## Example: With Context Menu
+
+```tsx
+import { definePlugin, cellContextMenuItem } from "@izumisy/seizen-table/plugin";
+import { z } from "zod";
+
+const FilterSchema = z.object({
+  width: z.number().default(320),
+});
+
+export const FilterPlugin = definePlugin({
+  id: "filter",
+  name: "Filter",
+  args: FilterSchema,
+  slots: {
+    sidePanel: {
+      position: "right-sider",
+      header: "Filters",
+      render: FilterPanel,
+    },
+  },
+  contextMenuItems: {
+    cell: [
+      cellContextMenuItem("filter-by-value", (ctx) => ({
+        label: `Filter by "${ctx.value}"`,
+        onClick: () => {
+          ctx.column.setFilterValue(ctx.value);
+        },
+        visible: ctx.value != null,
+      })),
+    ],
+  },
+});
+```
+
+## Example: Header Slot Plugin
+
+```tsx
+import { definePlugin } from "@izumisy/seizen-table/plugin";
+import { z } from "zod";
+
+const SearchSchema = z.object({
+  placeholder: z.string().default("Search..."),
+});
+
+function SearchHeader() {
+  const args = usePluginArgs<z.infer<typeof SearchSchema>>();
+  const { table } = usePluginContext();
+
+  return (
+    <input
+      type="text"
+      placeholder={args.placeholder}
+      onChange={(e) => table.setGlobalFilter(e.target.value)}
+    />
+  );
+}
+
+export const GlobalSearchPlugin = definePlugin({
+  id: "global-search",
+  name: "Global Search",
+  args: SearchSchema,
+  slots: {
+    header: {
+      render: SearchHeader,
+    },
+  },
+});
+```
+
+## Type Parameters
+
+<ParamField path="TData" type="type parameter">
+  The type of row data in your table. Use `unknown` for generic plugins.
+</ParamField>
+
+<ParamField path="TSchema" type="extends z.ZodType">
+  Zod schema type for plugin configuration
+</ParamField>
+
+## Related Types
+
+- [`SlotType`](/api/plugin/slot-types) - Available slot types
+- [`PluginContext`](/api/plugin/plugin-context#plugincontext-type) - Context passed to plugins
+- [`cellContextMenuItem`](/api/plugin/plugin-context#cellcontextmenuitem) - Cell context menu helper
+- [`columnContextMenuItem`](/api/plugin/plugin-context#columncontextmenuitem) - Column context menu helper
+
+## Notes
+
+- Configuration is validated at runtime using the provided Zod schema
+- Use `usePluginArgs()` inside slot render functions to access validated configuration
+- Use `usePluginContext()` to access table instance, data, and events
+- Plugins are isolated - they cannot directly access each other's state
+- Use the EventBus for inter-plugin communication

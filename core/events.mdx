@@ -1,0 +1,382 @@
+---
+title: 'Event Bus'
+description: 'Subscribe to table events and create custom events with plugins'
+---
+
+## Overview
+
+Seizen Table provides a built-in event bus for subscribing to table state changes and row interactions. The event system enables communication between your application code, the table, and plugins with full type safety.
+
+## Subscribing to Events
+
+Use `useSeizenTableEvent` to listen to events:
+
+```tsx
+import { useSeizenTable, SeizenTable, useSeizenTableEvent } from '@izumisy/seizen-table';
+
+function App() {
+  const table = useSeizenTable({ data, columns });
+
+  useSeizenTableEvent(table, 'row-click', (row) => {
+    console.log('Row clicked:', row);
+  });
+
+  useSeizenTableEvent(table, 'selection-change', (selectedRows) => {
+    console.log('Selection changed:', selectedRows);
+  });
+
+  return <SeizenTable table={table} />;
+}
+```
+
+## Built-in Events
+
+Seizen Table automatically emits these events:
+
+### data-change
+
+Emitted when table data changes.
+
+```tsx
+useSeizenTableEvent(table, 'data-change', (data) => {
+  console.log('Data updated:', data);
+  // Payload: TData[]
+});
+```
+
+### selection-change
+
+Emitted when row selection changes.
+
+```tsx
+useSeizenTableEvent(table, 'selection-change', (selectedRows) => {
+  console.log('Selected rows:', selectedRows);
+  updateToolbar(selectedRows.length);
+  // Payload: TData[]
+});
+```
+
+### filter-change
+
+Emitted when column filters change.
+
+```tsx
+useSeizenTableEvent(table, 'filter-change', (filters) => {
+  console.log('Filters:', filters);
+  // Payload: ColumnFiltersState
+  // Example: [{ id: 'name', value: 'John' }]
+});
+```
+
+### sorting-change
+
+Emitted when sorting changes.
+
+```tsx
+useSeizenTableEvent(table, 'sorting-change', (sorting) => {
+  console.log('Sorting:', sorting);
+  // Payload: SortingState
+  // Example: [{ id: 'age', desc: true }]
+});
+```
+
+### pagination-change
+
+Emitted when pagination changes.
+
+```tsx
+useSeizenTableEvent(table, 'pagination-change', (pagination) => {
+  console.log('Pagination:', pagination);
+  // Payload: PaginationState
+  // Example: { pageIndex: 1, pageSize: 20 }
+});
+```
+
+### row-click
+
+Emitted when a table row is clicked.
+
+```tsx
+useSeizenTableEvent(table, 'row-click', (row) => {
+  console.log('Row clicked:', row);
+  navigateTo(`/users/${row.id}`);
+  // Payload: TData
+});
+```
+
+### cell-context-menu
+
+Emitted when cell context menu is opened.
+
+```tsx
+useSeizenTableEvent(table, 'cell-context-menu', ({ cell, column, row, value }) => {
+  console.log('Cell context menu:', { cell, column, row, value });
+  // Payload: { cell: Cell, column: Column, row: Row, value: unknown }
+});
+```
+
+### column-context-menu
+
+Emitted when column header context menu is opened.
+
+```tsx
+useSeizenTableEvent(table, 'column-context-menu', ({ column }) => {
+  console.log('Column context menu:', column);
+  // Payload: { column: Column }
+});
+```
+
+## Event Payload Types
+
+All events are fully typed:
+
+```tsx
+import type {
+  ColumnFiltersState,
+  PaginationState,
+  SortingState,
+  Cell,
+  Column,
+  Row,
+} from '@izumisy/seizen-table';
+
+type EventMap<TData> = {
+  'data-change': TData[];
+  'selection-change': TData[];
+  'filter-change': ColumnFiltersState;
+  'sorting-change': SortingState;
+  'pagination-change': PaginationState;
+  'row-click': TData;
+  'cell-context-menu': {
+    cell: Cell<TData, unknown>;
+    column: Column<TData, unknown>;
+    row: Row<TData>;
+    value: unknown;
+  };
+  'column-context-menu': {
+    column: Column<TData, unknown>;
+  };
+};
+```
+
+## Emitting Events
+
+Emit custom events using the event bus:
+
+```tsx
+function App() {
+  const table = useSeizenTable({ data, columns });
+
+  const handleCustomAction = () => {
+    // Emit a custom event
+    table.eventBus.emit('custom-action', { data: 'value' });
+  };
+
+  return (
+    <div>
+      <button onClick={handleCustomAction}>Trigger Custom Event</button>
+      <SeizenTable table={table} />
+    </div>
+  );
+}
+```
+
+## Plugin Custom Events
+
+Plugins can define custom events with full type safety using module augmentation:
+
+```tsx
+// In your plugin file:
+declare module '@izumisy/seizen-table/plugin' {
+  interface EventBusRegistry {
+    'my-plugin:action': { itemId: string; action: 'create' | 'delete' };
+    'my-plugin:complete': { success: boolean };
+  }
+}
+```
+
+Application code can subscribe to plugin events:
+
+```tsx
+useSeizenTableEvent(table, 'my-plugin:action', (payload) => {
+  // payload is typed as { itemId: string; action: 'create' | 'delete' }
+  console.log(`Plugin action: ${payload.action} on item ${payload.itemId}`);
+});
+
+useSeizenTableEvent(table, 'my-plugin:complete', (payload) => {
+  if (payload.success) {
+    showNotification('Operation completed successfully');
+  }
+});
+```
+
+## Remote Mode Integration
+
+Use events to integrate with external data sources in Remote Mode:
+
+```tsx
+import { useSeizenTable, SeizenTable, useSeizenTableEvent } from '@izumisy/seizen-table';
+import { useState, useEffect } from 'react';
+
+function RemoteTable() {
+  const [data, setData] = useState([]);
+  const [totalRows, setTotalRows] = useState(0);
+  const [loading, setLoading] = useState(false);
+
+  const table = useSeizenTable({
+    data,
+    columns,
+    remote: { totalRowCount: totalRows },
+  });
+
+  // Listen to filter changes
+  useSeizenTableEvent(table, 'filter-change', async (filters) => {
+    setLoading(true);
+    const response = await fetchUsers({ filters });
+    setData(response.data);
+    setTotalRows(response.total);
+    setLoading(false);
+  });
+
+  // Listen to sorting changes
+  useSeizenTableEvent(table, 'sorting-change', async (sorting) => {
+    setLoading(true);
+    const response = await fetchUsers({ sorting });
+    setData(response.data);
+    setTotalRows(response.total);
+    setLoading(false);
+  });
+
+  // Listen to pagination changes
+  useSeizenTableEvent(table, 'pagination-change', async (pagination) => {
+    setLoading(true);
+    const { pageIndex, pageSize } = pagination;
+    const response = await fetchUsers({ page: pageIndex, limit: pageSize });
+    setData(response.data);
+    setTotalRows(response.total);
+    setLoading(false);
+  });
+
+  return <SeizenTable table={table} loading={loading} />;
+}
+```
+
+## Event Bus API
+
+Access the event bus directly via `table.eventBus`:
+
+### emit()
+
+Emit an event to all subscribers:
+
+```tsx
+table.eventBus.emit('row-click', rowData);
+table.eventBus.emit('custom-event', { custom: 'payload' });
+```
+
+### subscribe()
+
+Subscribe to an event (returns unsubscribe function):
+
+```tsx
+const unsubscribe = table.eventBus.subscribe('row-click', (row) => {
+  console.log('Row clicked:', row);
+});
+
+// Later: unsubscribe
+unsubscribe();
+```
+
+<Note>
+The `useSeizenTableEvent` hook automatically handles cleanup when the component unmounts. Use `table.eventBus.subscribe()` directly only when you need manual control over subscription lifecycle.
+</Note>
+
+## Example: Selection Toolbar
+
+Build a toolbar that responds to selection changes:
+
+```tsx
+function UsersTable() {
+  const [selectedCount, setSelectedCount] = useState(0);
+  const table = useSeizenTable({ data: users, columns });
+
+  useSeizenTableEvent(table, 'selection-change', (rows) => {
+    setSelectedCount(rows.length);
+  });
+
+  const handleBulkDelete = () => {
+    const selected = table.getSelectedRows();
+    deleteUsers(selected);
+    table.clearSelection();
+  };
+
+  return (
+    <div>
+      {selectedCount > 0 && (
+        <div className="toolbar">
+          <span>{selectedCount} selected</span>
+          <button onClick={handleBulkDelete}>Delete</button>
+          <button onClick={() => table.clearSelection()}>Clear</button>
+        </div>
+      )}
+      <SeizenTable table={table} />
+    </div>
+  );
+}
+```
+
+## Example: Analytics Integration
+
+Track user interactions with analytics:
+
+```tsx
+function AnalyticsTable() {
+  const table = useSeizenTable({ data, columns });
+
+  useSeizenTableEvent(table, 'row-click', (row) => {
+    analytics.track('Table Row Clicked', {
+      rowId: row.id,
+      tableName: 'users',
+    });
+  });
+
+  useSeizenTableEvent(table, 'sorting-change', (sorting) => {
+    analytics.track('Table Sorted', {
+      column: sorting[0]?.id,
+      direction: sorting[0]?.desc ? 'desc' : 'asc',
+    });
+  });
+
+  useSeizenTableEvent(table, 'filter-change', (filters) => {
+    analytics.track('Table Filtered', {
+      filterCount: filters.length,
+      columns: filters.map(f => f.id),
+    });
+  });
+
+  return <SeizenTable table={table} />;
+}
+```
+
+## Type Safety
+
+The event system is fully type-safe in TypeScript:
+
+```tsx
+// ✅ Type-safe: 'row-click' expects TData
+useSeizenTableEvent(table, 'row-click', (row) => {
+  // row is typed as TData
+  console.log(row.id);
+});
+
+// ✅ Type-safe: 'pagination-change' expects PaginationState
+useSeizenTableEvent(table, 'pagination-change', (pagination) => {
+  // pagination is typed as { pageIndex: number; pageSize: number }
+  console.log(pagination.pageIndex);
+});
+
+// ❌ Type error: invalid event name
+useSeizenTableEvent(table, 'invalid-event', (data) => {
+  // TypeScript error
+});
+```

@@ -1,0 +1,403 @@
+---
+title: Event Bus API
+description: Event-based communication between plugins and the table
+---
+
+## Overview
+
+The Event Bus provides a pub/sub mechanism for communication between plugins and the SeizenTable instance. Plugins can subscribe to built-in table events or define custom events for inter-plugin communication.
+
+## Import
+
+```tsx
+import { useEventBus } from "@izumisy/seizen-table/plugin";
+import type { SeizenTableEventMap, EventBusRegistry } from "@izumisy/seizen-table/plugin";
+```
+
+---
+
+## Built-in Events
+
+SeizenTable automatically emits these events when table state changes:
+
+<ParamField path="data-change" type="TData[]">
+  Emitted when table data changes. Payload is the entire data array.
+</ParamField>
+
+<ParamField path="selection-change" type="TData[]">
+  Emitted when row selection changes. Payload is the array of selected rows.
+</ParamField>
+
+<ParamField path="filter-change" type="ColumnFiltersState">
+  Emitted when column filters change.
+
+  ```typescript
+  type ColumnFiltersState = {
+    id: string;
+    value: unknown;
+  }[];
+  ```
+</ParamField>
+
+<ParamField path="sorting-change" type="SortingState">
+  Emitted when sorting changes.
+
+  ```typescript
+  type SortingState = {
+    id: string;
+    desc: boolean;
+  }[];
+  ```
+</ParamField>
+
+<ParamField path="pagination-change" type="PaginationState">
+  Emitted when pagination changes.
+
+  ```typescript
+  type PaginationState = {
+    pageIndex: number;
+    pageSize: number;
+  };
+  ```
+</ParamField>
+
+<ParamField path="row-click" type="TData">
+  Emitted when a table row is clicked. Payload is the clicked row data.
+</ParamField>
+
+<ParamField path="cell-context-menu" type="object">
+  Emitted when cell context menu is opened.
+
+  ```typescript
+  {
+    cell: Cell<TData, unknown>;
+    column: Column<TData, unknown>;
+    row: Row<TData>;
+    value: unknown;
+  }
+  ```
+</ParamField>
+
+<ParamField path="column-context-menu" type="object">
+  Emitted when column header context menu is opened.
+
+  ```typescript
+  {
+    column: Column<TData, unknown>;
+  }
+  ```
+</ParamField>
+
+---
+
+## Subscribing to Events
+
+Plugins subscribe to events using the `useEvent` hook from `usePluginContext()`:
+
+### Example: Selection Changes
+
+```tsx
+import { usePluginContext } from "@izumisy/seizen-table/plugin";
+
+function MyPluginPanel() {
+  const { useEvent } = usePluginContext();
+
+  useEvent("selection-change", (selectedRows) => {
+    console.log("Selection changed:", selectedRows.length, "rows");
+  });
+
+  return <div>My Plugin</div>;
+}
+```
+
+### Example: Row Clicks
+
+```tsx
+import { useState } from "react";
+import { usePluginContext } from "@izumisy/seizen-table/plugin";
+
+function RowDetailPanel() {
+  const { openArgs, useEvent } = usePluginContext<"row-detail">();
+  const [selectedRow, setSelectedRow] = useState(openArgs?.row ?? null);
+
+  // Update selected row when user clicks another row
+  useEvent("row-click", (row) => {
+    setSelectedRow(row);
+  });
+
+  return <div>{JSON.stringify(selectedRow)}</div>;
+}
+```
+
+### Example: Filter Changes
+
+```tsx
+function FilterPanel() {
+  const { useEvent } = usePluginContext();
+  const [filterCount, setFilterCount] = useState(0);
+
+  useEvent("filter-change", (filters) => {
+    setFilterCount(filters.length);
+  });
+
+  return <div>{filterCount} active filters</div>;
+}
+```
+
+---
+
+## Emitting Events
+
+Plugins can emit events using the `emit` function from context menu items or from the table instance.
+
+### From Context Menu Items
+
+```tsx
+import { cellContextMenuItem } from "@izumisy/seizen-table/plugin";
+
+cellContextMenuItem("filter-by-value", (ctx) => ({
+  label: `Filter by "${ctx.value}"`,
+  onClick: () => {
+    // Emit custom event
+    ctx.emit("filter:add-request", {
+      columnKey: ctx.column.id,
+      value: ctx.value,
+    });
+  },
+}))
+```
+
+### From Application Code
+
+```tsx
+import { useSeizenTable } from "@izumisy/seizen-table";
+
+function MyTable() {
+  const table = useSeizenTable({
+    data,
+    columns,
+    plugins: [FilterPlugin.configure({})],
+  });
+
+  // Emit row-click event when a row is clicked
+  const handleRowClick = (row: Person) => {
+    table.eventBus.emit("row-click", row);
+    table.plugin.open("row-detail", { row });
+  };
+
+  return <SeizenTable.Root table={table}>...</SeizenTable.Root>;
+}
+```
+
+---
+
+## Custom Events
+
+Plugins can define custom events via module augmentation for type-safe event handling.
+
+### Step 1: Declare Custom Events
+
+```typescript
+// In your plugin file
+declare module "@izumisy/seizen-table/plugin" {
+  interface EventBusRegistry {
+    "filter:add-request": {
+      columnKey: string;
+      value: unknown;
+    };
+    "filter:clear-all": void;
+    "export:start": { format: "csv" | "json" };
+    "export:complete": { success: boolean; rowCount: number };
+  }
+}
+```
+
+### Step 2: Emit Custom Events
+
+```tsx
+import { cellContextMenuItem } from "@izumisy/seizen-table/plugin";
+
+// From context menu
+cellContextMenuItem("add-filter", (ctx) => ({
+  label: "Add to filters",
+  onClick: () => {
+    ctx.emit("filter:add-request", {
+      columnKey: ctx.column.id,
+      value: ctx.value,
+    });
+  },
+}))
+
+// From plugin component
+function ExportButton() {
+  const { table } = usePluginContext();
+
+  const handleExport = () => {
+    table.eventBus.emit("export:start", { format: "csv" });
+    // ... export logic
+    table.eventBus.emit("export:complete", { success: true, rowCount: 100 });
+  };
+
+  return <button onClick={handleExport}>Export</button>;
+}
+```
+
+### Step 3: Subscribe to Custom Events
+
+```tsx
+import { usePluginContext } from "@izumisy/seizen-table/plugin";
+
+function FilterPanel() {
+  const { useEvent } = usePluginContext();
+
+  // Subscribe to custom event with type safety
+  useEvent("filter:add-request", ({ columnKey, value }) => {
+    console.log(`Add filter for ${columnKey}:`, value);
+    // Update plugin state...
+  });
+
+  useEvent("filter:clear-all", () => {
+    console.log("Clear all filters");
+  });
+
+  return <div>Filter Panel</div>;
+}
+```
+
+---
+
+## EventBus Type
+
+The EventBus instance provides `emit` and `subscribe` methods:
+
+```typescript
+interface EventBus {
+  /**
+   * Emit an event to all subscribers
+   */
+  emit: <K extends SeizenTableEventName | (string & {})>(
+    event: K,
+    payload: K extends SeizenTableEventName ? SeizenTableEventMap[K] : unknown
+  ) => void;
+
+  /**
+   * Subscribe to an event
+   * @returns Unsubscribe function
+   */
+  subscribe: <K extends SeizenTableEventName | (string & {})>(
+    event: K,
+    callback: (
+      payload: K extends SeizenTableEventName ? SeizenTableEventMap[K] : unknown
+    ) => void
+  ) => () => void;
+}
+```
+
+### Manual Subscription
+
+While plugins typically use `useEvent`, you can manually subscribe to events:
+
+```tsx
+import { useEffect } from "react";
+import { usePluginContext } from "@izumisy/seizen-table/plugin";
+
+function MyPlugin() {
+  const { table } = usePluginContext();
+
+  useEffect(() => {
+    const unsubscribe = table.eventBus.subscribe("data-change", (data) => {
+      console.log("Data changed:", data.length);
+    });
+
+    // Cleanup
+    return unsubscribe;
+  }, [table.eventBus]);
+
+  return <div>My Plugin</div>;
+}
+```
+
+---
+
+## Complete Example: Inter-Plugin Communication
+
+```tsx
+// 1. Declare custom events
+declare module "@izumisy/seizen-table/plugin" {
+  interface EventBusRegistry {
+    "filter:add-request": { columnKey: string; value: unknown };
+    "filter:applied": { columnKey: string; value: unknown };
+  }
+}
+
+// 2. Plugin A: Emit event from context menu
+export const ContextMenuPlugin = definePlugin({
+  id: "context-menu",
+  name: "Context Menu",
+  args: z.object({}),
+  slots: {},
+  contextMenuItems: {
+    cell: [
+      cellContextMenuItem("filter-by-value", (ctx) => ({
+        label: `Filter by "${ctx.value}"`,
+        onClick: () => {
+          ctx.emit("filter:add-request", {
+            columnKey: ctx.column.id,
+            value: ctx.value,
+          });
+        },
+      })),
+    ],
+  },
+});
+
+// 3. Plugin B: Subscribe to event
+function FilterPanel() {
+  const { useEvent, table } = usePluginContext();
+  const [filters, setFilters] = useState<Array<{ key: string; value: unknown }>>([]);
+
+  // Listen for filter requests
+  useEvent("filter:add-request", ({ columnKey, value }) => {
+    setFilters((prev) => [...prev, { key: columnKey, value }]);
+    table.eventBus.emit("filter:applied", { columnKey, value });
+  });
+
+  return (
+    <div>
+      {filters.map((f, i) => (
+        <div key={i}>
+          {f.key}: {String(f.value)}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export const FilterPlugin = definePlugin({
+  id: "filter",
+  name: "Filter",
+  args: z.object({}),
+  slots: {
+    sidePanel: {
+      position: "right-sider",
+      render: FilterPanel,
+    },
+  },
+});
+```
+
+---
+
+## Event Naming Conventions
+
+<Tip>
+  Use namespaced event names for custom events to avoid conflicts:
+  - `plugin-id:event-name` (e.g., `filter:add-request`)
+  - `feature:action` (e.g., `export:complete`)
+</Tip>
+
+## Related
+
+- [`usePluginContext`](/api/plugin/plugin-context#useplugincontext) - Access event subscription hook
+- [`definePlugin`](/api/plugin/define-plugin) - Create type-safe plugins
+- [`cellContextMenuItem`](/api/plugin/plugin-context#cellcontextmenuitem) - Emit events from context menus

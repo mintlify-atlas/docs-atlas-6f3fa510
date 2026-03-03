@@ -1,0 +1,329 @@
+---
+title: SeizenTable
+description: High-level table component with built-in UI, pagination, and plugin slots
+icon: table
+---
+
+The `SeizenTable` component is the highest-level abstraction for rendering a table. It includes default UI, pagination, and automatic plugin slot rendering.
+
+## Import
+
+```tsx
+import { SeizenTable } from "@izumisy/seizen-table";
+```
+
+## Usage
+
+### Basic Usage
+
+```tsx
+import { useSeizenTable, SeizenTable } from "@izumisy/seizen-table";
+
+function MyTable() {
+  const table = useSeizenTable({ data, columns });
+
+  return <SeizenTable table={table} />;
+}
+```
+
+### With Pagination Options
+
+```tsx
+<SeizenTable
+  table={table}
+  paginate={{
+    enable: true,
+    sizeOptions: [10, 20, 50, 100],
+  }}
+/>
+```
+
+### With Loading State (Remote Mode)
+
+```tsx
+const [loading, setLoading] = useState(false);
+
+<SeizenTable
+  table={table}
+  loading={loading}
+  loaderComponent={<CustomSpinner />}
+/>
+```
+
+### Custom Styling
+
+```tsx
+<SeizenTable table={table} className="my-custom-table" />
+```
+
+## Props
+
+<ParamField path="table" type="SeizenTableInstance<TData>" required>
+  The table instance from `useSeizenTable`.
+
+  ```tsx
+  const table = useSeizenTable({ data, columns });
+  ```
+</ParamField>
+
+<ParamField path="className" type="string">
+  Additional CSS class name for the table container.
+
+  ```tsx
+  <SeizenTable table={table} className="custom-table" />
+  ```
+</ParamField>
+
+<ParamField path="paginate" type="PaginateOptions">
+  Pagination configuration options.
+
+  **Properties:**
+  - `enable?: boolean` - Whether to show pagination (default: `true`)
+  - `sizeOptions?: number[]` - Page size options for dropdown (default: `[10, 20, 50, 100]`)
+
+  ```tsx
+  <SeizenTable
+    table={table}
+    paginate={{
+      enable: true,
+      sizeOptions: [25, 50, 100, 200],
+    }}
+  />
+  ```
+
+  To disable pagination:
+  ```tsx
+  <SeizenTable table={table} paginate={{ enable: false }} />
+  ```
+</ParamField>
+
+<ParamField path="loading" type="boolean" default="false">
+  Show loading overlay on the table. Useful for Remote Mode when fetching data.
+
+  ```tsx
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = table.eventBus.subscribe("pagination-change", async (state) => {
+      setLoading(true);
+      await fetchData(state.pageIndex, state.pageSize);
+      setLoading(false);
+    });
+    return unsubscribe;
+  }, []);
+
+  <SeizenTable table={table} loading={loading} />
+  ```
+</ParamField>
+
+<ParamField path="loaderComponent" type="React.ReactNode">
+  Custom loader component to display during loading state. Defaults to a built-in spinner.
+
+  ```tsx
+  <SeizenTable
+    table={table}
+    loading={loading}
+    loaderComponent={<MyCustomSpinner size="lg" />}
+  />
+  ```
+</ParamField>
+
+## Compound Components
+
+For more control over table layout and plugin slots, use compound components:
+
+```tsx
+import { SeizenTable } from "@izumisy/seizen-table";
+import { SeizenTablePlugins } from "@izumisy/seizen-table/plugin";
+
+<SeizenTable.Root table={table}>
+  <SeizenTablePlugins.SidePanel position="left" />
+  
+  <SeizenTable.Content>
+    <SeizenTablePlugins.Header />
+    
+    <SeizenTable.Table before={<SeizenTable.Loader loading={loading} />}>
+      <SeizenTable.Header />
+      <SeizenTable.Body />
+    </SeizenTable.Table>
+    
+    <SeizenTablePlugins.Footer />
+    <SeizenTable.Paginator sizeOptions={[10, 20, 50]} />
+  </SeizenTable.Content>
+  
+  <SeizenTablePlugins.SidePanel position="right" />
+</SeizenTable.Root>
+```
+
+### Available Compound Components
+
+<AccordionGroup>
+  <Accordion title="SeizenTable.Root" icon="box">
+    Root container providing table context to all child components.
+
+    **Props:**
+    - `table: SeizenTableInstance<TData>` (required)
+    - `className?: string`
+    - `children: React.ReactNode`
+  </Accordion>
+
+  <Accordion title="SeizenTable.Content" icon="align-center">
+    Main content area container (excludes side panels).
+
+    **Props:**
+    - `children: React.ReactNode`
+  </Accordion>
+
+  <Accordion title="SeizenTable.Table" icon="table">
+    The actual `<table>` element.
+
+    **Props:**
+    - `before?: React.ReactNode` - Content to render before the table (e.g., loading overlay)
+    - `after?: React.ReactNode` - Content to render after the table
+    - `children: React.ReactNode`
+  </Accordion>
+
+  <Accordion title="SeizenTable.Header" icon="heading">
+    Table header (`<thead>`) with column headers.
+
+    Automatically renders:
+    - Column headers
+    - Sort indicators
+    - Context menu triggers
+    - Plugin cell slots in header
+  </Accordion>
+
+  <Accordion title="SeizenTable.Body" icon="list">
+    Table body (`<tbody>`) with data rows.
+
+    Automatically renders:
+    - Data rows
+    - Row selection
+    - Plugin inline row slots
+    - Plugin cell slots
+  </Accordion>
+
+  <Accordion title="SeizenTable.Row" icon="bars">
+    Individual table row (`<tr>`). Usually not needed - `Body` renders rows automatically.
+
+    **Props:**
+    - `row: Row<TData>` - TanStack Table row object
+  </Accordion>
+
+  <Accordion title="SeizenTable.Cell" icon="square">
+    Individual table cell (`<td>`). Usually not needed - `Row` renders cells automatically.
+
+    **Props:**
+    - `cell: Cell<TData, unknown>` - TanStack Table cell object
+  </Accordion>
+
+  <Accordion title="SeizenTable.Paginator" icon="arrows-left-right">
+    Pagination controls. See [Paginator](/api/paginator) for details.
+
+    **Props:**
+    - `table: SeizenTableInstance<TData>` (required when used standalone)
+    - `sizeOptions?: number[]`
+    - `showPageSizeSelector?: boolean`
+    - `showPageInfo?: boolean`
+  </Accordion>
+
+  <Accordion title="SeizenTable.Loader" icon="spinner">
+    Loading overlay component for composable UI.
+
+    **Props:**
+    - `loading?: boolean` (default: `true`)
+    - `children?: React.ReactNode` - Custom loader component
+
+    **Usage:**
+    ```tsx
+    <SeizenTable.Table before={<SeizenTable.Loader loading={isLoading} />}>
+      <SeizenTable.Header />
+      <SeizenTable.Body />
+    </SeizenTable.Table>
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Plugin Slots
+
+When using `<SeizenTable>`, all plugin slots are automatically rendered:
+
+- **Side Panels** (left/right) - `SeizenTablePlugins.SidePanel`
+- **Header Slot** - `SeizenTablePlugins.Header`
+- **Footer Slot** - `SeizenTablePlugins.Footer`
+- **Inline Row Slots** - Rendered between table rows
+- **Cell Slots** - Rendered in table cells
+
+For custom layouts, use compound components to position plugin slots manually.
+
+See [Plugin System](/plugins/overview) for details.
+
+## Styling
+
+Seizen Table uses CSS Variables for theming. Override these in your stylesheet:
+
+```css
+:root {
+  /* Table colors */
+  --seizen-table-bg: #ffffff;
+  --seizen-table-border: #e5e7eb;
+  --seizen-table-header-bg: #f9fafb;
+  --seizen-table-row-hover: #f3f4f6;
+  --seizen-table-row-selected: #dbeafe;
+  
+  /* Text colors */
+  --seizen-table-text: #111827;
+  --seizen-table-text-secondary: #6b7280;
+  
+  /* Borders */
+  --seizen-table-border-radius: 8px;
+  
+  /* Spacing */
+  --seizen-table-cell-padding: 12px 16px;
+}
+```
+
+See [Theming](/core/theming) for the complete list of CSS variables.
+
+## Type Parameters
+
+<ParamField path="TData" type="generic">
+  The type of your row data, inherited from the table instance.
+
+  ```tsx
+  interface User {
+    id: number;
+    name: string;
+  }
+
+  const table = useSeizenTable<User>({ data, columns });
+  
+  // TData is automatically inferred
+  <SeizenTable table={table} />
+  ```
+</ParamField>
+
+## Related Types
+
+See [Core Types](/api/types) for:
+- `SeizenTableProps<TData>`
+- `PaginateOptions`
+- `LoaderProps`
+- Component props for compound components
+
+## Examples
+
+<CardGroup cols={2}>
+  <Card title="Basic Table" icon="table" href="/examples/basic">
+    Simple table with default settings
+  </Card>
+  <Card title="Remote Data" icon="cloud" href="/examples/remote">
+    Server-side pagination with loading states
+  </Card>
+  <Card title="Custom Layout" icon="grid" href="/examples/custom-layout">
+    Using compound components for custom layouts
+  </Card>
+  <Card title="Theming" icon="palette" href="/examples/theming">
+    Customizing table appearance with CSS variables
+  </Card>
+</CardGroup>

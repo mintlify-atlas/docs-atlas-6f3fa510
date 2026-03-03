@@ -1,0 +1,402 @@
+---
+title: Plugin Context Hooks
+description: Access table state and configuration from within plugins
+---
+
+## Overview
+
+Plugin context hooks provide access to table state, configuration, and event handling from within plugin components.
+
+## Import
+
+```tsx
+import {
+  usePluginContext,
+  usePluginArgs,
+  cellContextMenuItem,
+  columnContextMenuItem,
+} from "@izumisy/seizen-table/plugin";
+```
+
+---
+
+## usePluginContext
+
+Access table instance, data, selected rows, and event subscription from within a plugin component.
+
+### Type Signature
+
+```typescript
+function usePluginContext<TPluginId extends keyof PluginArgsRegistry | (string & {}) = string>(): PluginContextValue<
+  TPluginId extends keyof PluginArgsRegistry ? PluginArgsRegistry[TPluginId] : unknown
+>
+```
+
+### Returns
+
+<ResponseField name="table" type="SeizenTableInstance<unknown>">
+  The SeizenTable instance with full TanStack Table API
+</ResponseField>
+
+<ResponseField name="data" type="unknown[]">
+  Current table data (typed as `unknown[]` - cast as needed)
+</ResponseField>
+
+<ResponseField name="columns" type="PluginColumnInfo[]">
+  Column information with keys, headers, and filter metadata
+
+  ```typescript
+  interface PluginColumnInfo {
+    key: string;        // Column accessor key
+    header: string;     // Column header text
+    filterMeta?: ColumnFilterMeta;  // Filter metadata
+  }
+  ```
+</ResponseField>
+
+<ResponseField name="selectedRows" type="unknown[]">
+  Currently selected rows (typed as `unknown[]` - cast as needed)
+</ResponseField>
+
+<ResponseField name="openArgs" type="TOpenArgs | undefined">
+  Arguments passed to `table.plugin.open()` when the plugin was opened.
+  Type-safe when using PluginArgsRegistry.
+</ResponseField>
+
+<ResponseField name="useEvent" type="<K extends SeizenTableEventName>(event: K, callback: (payload) => void) => void">
+  Hook to subscribe to table events. Automatically cleans up on unmount.
+</ResponseField>
+
+### Example: Basic Usage
+
+```tsx
+function MyPluginPanel() {
+  const { table, data, selectedRows, useEvent } = usePluginContext();
+
+  // Subscribe to selection changes
+  useEvent("selection-change", (rows) => {
+    console.log("Selection changed:", rows);
+  });
+
+  return (
+    <div>
+      <p>Total rows: {data.length}</p>
+      <p>Selected: {selectedRows.length}</p>
+    </div>
+  );
+}
+```
+
+### Example: Type-Safe openArgs
+
+```tsx
+// 1. Register plugin args type
+declare module "@izumisy/seizen-table/plugin" {
+  interface PluginArgsRegistry {
+    "row-detail": { row: Person };
+  }
+}
+
+// 2. Use with plugin ID for type-safe openArgs
+function RowDetailPanel() {
+  const { openArgs } = usePluginContext<"row-detail">();
+  // openArgs is typed as { row: Person } | undefined
+  const row = openArgs?.row;
+
+  return <div>{row?.name}</div>;
+}
+
+// 3. Application opens plugin with typed args
+table.plugin.open("row-detail", { row: clickedRow });
+```
+
+### Example: Using Table API
+
+```tsx
+function FilterPanel() {
+  const { table } = usePluginContext();
+
+  const handleClearFilters = () => {
+    table.resetColumnFilters();
+  };
+
+  const handleClearSorting = () => {
+    table.resetSorting();
+  };
+
+  return (
+    <div>
+      <button onClick={handleClearFilters}>Clear Filters</button>
+      <button onClick={handleClearSorting}>Clear Sorting</button>
+    </div>
+  );
+}
+```
+
+---
+
+## usePluginArgs
+
+Access the validated plugin configuration passed to `Plugin.configure()`.
+
+### Type Signature
+
+```typescript
+function usePluginArgs<TArgs>(): TArgs
+```
+
+### Returns
+
+<ResponseField name="args" type="TArgs">
+  Validated plugin configuration from the Zod schema
+</ResponseField>
+
+### Example
+
+```tsx
+import { z } from "zod";
+import { definePlugin, usePluginArgs } from "@izumisy/seizen-table/plugin";
+
+const FilterSchema = z.object({
+  width: z.number().default(320),
+  disableGlobalSearch: z.boolean().default(false),
+});
+
+type FilterConfig = z.infer<typeof FilterSchema>;
+
+function FilterPanel() {
+  const args = usePluginArgs<FilterConfig>();
+  // args.width and args.disableGlobalSearch are type-safe
+
+  return (
+    <div style={{ width: args.width }}>
+      {!args.disableGlobalSearch && <SearchInput />}
+    </div>
+  );
+}
+
+export const FilterPlugin = definePlugin({
+  id: "filter",
+  name: "Filter",
+  args: FilterSchema,
+  slots: {
+    sidePanel: {
+      position: "right-sider",
+      render: FilterPanel,
+    },
+  },
+});
+```
+
+---
+
+## cellContextMenuItem
+
+Helper function to create a cell context menu item with full context access.
+
+### Type Signature
+
+```typescript
+function cellContextMenuItem<TData, TArgs = unknown>(
+  id: string,
+  factory: (ctx: CellContextMenuItemContext<TData, TArgs>) => ContextMenuItemEntry
+): CellContextMenuItemFactory<TData, TArgs>
+```
+
+### Parameters
+
+<ParamField path="id" type="string" required>
+  Unique identifier for the menu item
+</ParamField>
+
+<ParamField path="factory" type="function" required>
+  Factory function that receives context and returns menu item entry
+
+  **Context properties:**
+  - `cell: Cell<TData, unknown>` - The clicked cell
+  - `column: Column<TData, unknown>` - The column of the clicked cell
+  - `row: Row<TData>` - The row containing the clicked cell
+  - `value: unknown` - The raw cell value
+  - `selectedRows: TData[]` - Currently selected rows
+  - `table: Table<TData>` - TanStack Table instance
+  - `pluginArgs: TArgs` - Plugin configuration args
+  - `emit: EventBus["emit"]` - Emit events to the EventBus
+</ParamField>
+
+### Returns
+
+<ResponseField name="ContextMenuItemEntry" type="object">
+  <Expandable title="properties">
+    <ResponseField name="label" type="string" required>
+      Display label for the menu item
+    </ResponseField>
+
+    <ResponseField name="icon" type="ReactNode">
+      Optional icon to display alongside the label
+    </ResponseField>
+
+    <ResponseField name="onClick" type="() => void" required>
+      Handler called when the menu item is clicked
+    </ResponseField>
+
+    <ResponseField name="visible" type="boolean" default="true">
+      Whether to show this item
+    </ResponseField>
+
+    <ResponseField name="disabled" type="boolean" default="false">
+      Whether the item is disabled
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Example: Filter by Value
+
+```tsx
+import { cellContextMenuItem } from "@izumisy/seizen-table/plugin";
+
+cellContextMenuItem("filter-by-value", (ctx) => {
+  const displayValue = ctx.value == null ? "(empty)" : String(ctx.value).slice(0, 20);
+  return {
+    label: `Filter by "${displayValue}"`,
+    onClick: () => {
+      ctx.column.setFilterValue(ctx.value);
+    },
+    visible: ctx.value != null,
+  };
+})
+```
+
+### Example: Copy Value
+
+```tsx
+cellContextMenuItem("copy-value", (ctx) => ({
+  label: "Copy value",
+  onClick: () => {
+    navigator.clipboard.writeText(String(ctx.value ?? ""));
+  },
+}))
+```
+
+### Example: Emit Custom Event
+
+```tsx
+cellContextMenuItem("add-filter", (ctx) => ({
+  label: "Add to filters",
+  onClick: () => {
+    ctx.emit("filter:add-request", {
+      columnKey: ctx.column.id,
+      value: ctx.value,
+    });
+  },
+  visible: !!ctx.column.columnDef.meta?.filterType,
+}))
+```
+
+---
+
+## columnContextMenuItem
+
+Helper function to create a column context menu item with full context access.
+
+### Type Signature
+
+```typescript
+function columnContextMenuItem<TData, TArgs = unknown>(
+  id: string,
+  factory: (ctx: ColumnContextMenuItemContext<TData, TArgs>) => ContextMenuItemEntry
+): ColumnContextMenuItemFactory<TData, TArgs>
+```
+
+### Parameters
+
+<ParamField path="id" type="string" required>
+  Unique identifier for the menu item
+</ParamField>
+
+<ParamField path="factory" type="function" required>
+  Factory function that receives context and returns menu item entry
+
+  **Context properties:**
+  - `column: Column<TData, unknown>` - The clicked column header
+  - `table: Table<TData>` - TanStack Table instance
+  - `pluginArgs: TArgs` - Plugin configuration args
+  - `emit: EventBus["emit"]` - Emit events to the EventBus
+</ParamField>
+
+### Returns
+
+Same as `cellContextMenuItem` - returns `ContextMenuItemEntry`
+
+### Example: Hide Column
+
+```tsx
+import { columnContextMenuItem } from "@izumisy/seizen-table/plugin";
+
+columnContextMenuItem("hide-column", (ctx) => ({
+  label: "Hide column",
+  onClick: () => {
+    ctx.column.toggleVisibility(false);
+  },
+  visible: ctx.column.getCanHide(),
+}))
+```
+
+### Example: Sort Column
+
+```tsx
+columnContextMenuItem("sort-asc", (ctx) => ({
+  label: "Sort ascending",
+  onClick: () => {
+    ctx.column.toggleSorting(false);
+  },
+  visible: ctx.column.getCanSort(),
+}))
+
+columnContextMenuItem("sort-desc", (ctx) => ({
+  label: "Sort descending",
+  onClick: () => {
+    ctx.column.toggleSorting(true);
+  },
+  visible: ctx.column.getCanSort(),
+}))
+```
+
+### Example: Emit Event
+
+```tsx
+columnContextMenuItem("sort-request", (ctx) => ({
+  label: "Sort ascending",
+  onClick: () => {
+    ctx.emit("column:sort-request", {
+      columnId: ctx.column.id,
+      direction: "asc",
+    });
+  },
+}))
+```
+
+---
+
+## PluginContext Type
+
+The full type definition for the plugin context value:
+
+```typescript
+interface PluginContextValue<TOpenArgs = unknown> {
+  table: SeizenTableInstance<unknown>;
+  data: unknown[];
+  columns: PluginColumnInfo[];
+  selectedRows: unknown[];
+  openArgs: TOpenArgs | undefined;
+  useEvent: <K extends SeizenTableEventName | (string & {})>(
+    event: K,
+    callback: (payload: K extends SeizenTableEventName ? SeizenTableEventMap[K] : unknown) => void
+  ) => void;
+}
+```
+
+## Related
+
+- [`definePlugin`](/api/plugin/define-plugin) - Create type-safe plugins
+- [`Event Bus API`](/api/plugin/event-bus) - Event-based communication
+- [`Slot Types`](/api/plugin/slot-types) - Available slot types

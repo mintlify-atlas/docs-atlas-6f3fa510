@@ -1,0 +1,336 @@
+---
+title: FileExportPlugin
+description: Export table data to CSV, JSONL, TSV, and custom file formats
+---
+
+The FileExportPlugin provides a UI for exporting table data to various file formats. It includes built-in exporters for CSV, JSONL, and TSV, and supports custom exporters.
+
+## Installation
+
+```bash
+npm install @izumisy/seizen-table-plugins
+```
+
+## Import
+
+```tsx
+import {
+  FileExportPlugin,
+  CsvExporter,
+  JsonlExporter,
+  TsvExporter,
+} from "@izumisy/seizen-table-plugins/file-export";
+```
+
+## Basic Usage
+
+```tsx
+import { useSeizenTable, SeizenTable } from "@izumisy/seizen-table";
+import {
+  FileExportPlugin,
+  CsvExporter,
+  JsonlExporter,
+  TsvExporter,
+} from "@izumisy/seizen-table-plugins/file-export";
+
+function DataTable() {
+  const table = useSeizenTable({
+    data,
+    columns,
+    plugins: [
+      FileExportPlugin.configure({
+        filename: "export",
+        exporters: [CsvExporter, JsonlExporter, TsvExporter],
+      }),
+    ],
+  });
+
+  return <SeizenTable table={table} />;
+}
+```
+
+## Configuration
+
+<ParamField path="width" type="number" default="300">
+  Width of the export side panel in pixels
+</ParamField>
+
+<ParamField path="filename" type="string" default="export">
+  Default filename for exported files (without extension)
+</ParamField>
+
+<ParamField path="includeHeaders" type="boolean" default="true">
+  Whether to include column headers in the export
+</ParamField>
+
+<ParamField path="exporters" type="Exporter[]" default="[CsvExporter]">
+  Array of exporter configurations to make available
+</ParamField>
+
+## Built-in Exporters
+
+### CSV Exporter
+
+Exports data as comma-separated values with proper escaping:
+
+```tsx
+import { CsvExporter } from "@izumisy/seizen-table-plugins/file-export";
+
+FileExportPlugin.configure({
+  exporters: [CsvExporter],
+})
+```
+
+**Features:**
+- Escapes commas, quotes, and newlines
+- Optional header row
+- MIME type: `text/csv;charset=utf-8;`
+- File extension: `.csv`
+
+### JSONL Exporter
+
+Exports data as JSON Lines (newline-delimited JSON):
+
+```tsx
+import { JsonlExporter } from "@izumisy/seizen-table-plugins/file-export";
+
+FileExportPlugin.configure({
+  exporters: [JsonlExporter],
+})
+```
+
+**Features:**
+- One JSON object per line
+- Preserves data types
+- MIME type: `application/jsonl;charset=utf-8;`
+- File extension: `.jsonl`
+
+### TSV Exporter
+
+Exports data as tab-separated values:
+
+```tsx
+import { TsvExporter } from "@izumisy/seizen-table-plugins/file-export";
+
+FileExportPlugin.configure({
+  exporters: [TsvExporter],
+})
+```
+
+**Features:**
+- Tab-delimited columns
+- Replaces tabs and newlines in values with spaces
+- Optional header row
+- MIME type: `text/tab-separated-values;charset=utf-8;`
+- File extension: `.tsv`
+
+## Custom Exporters
+
+Create custom exporters by implementing the `Exporter` interface:
+
+<CodeGroup>
+```tsx Custom Exporter
+import type { Exporter } from "@izumisy/seizen-table-plugins/file-export";
+
+const MarkdownExporter: Exporter = {
+  id: "markdown",
+  name: "Markdown Table",
+  extension: "md",
+  mimeType: "text/markdown;charset=utf-8;",
+  convert: (data, columns, options) => {
+    const lines: string[] = [];
+
+    if (options.includeHeaders) {
+      // Header row
+      const headers = columns.map(col => col.header).join(" | ");
+      lines.push(`| ${headers} |`);
+      
+      // Separator row
+      const separator = columns.map(() => "---").join(" | ");
+      lines.push(`| ${separator} |`);
+    }
+
+    // Data rows
+    for (const row of data) {
+      const rowData = row as Record<string, unknown>;
+      const values = columns.map(col => {
+        const value = rowData[col.key];
+        return String(value ?? "");
+      }).join(" | ");
+      lines.push(`| ${values} |`);
+    }
+
+    return lines.join("\n");
+  },
+};
+
+// Use the custom exporter
+FileExportPlugin.configure({
+  exporters: [CsvExporter, JsonlExporter, MarkdownExporter],
+})
+```
+</CodeGroup>
+
+## Exporter Interface
+
+The `Exporter` interface defines the structure for custom exporters:
+
+```tsx
+interface Exporter {
+  /** Unique identifier for the exporter */
+  id: string;
+  
+  /** Display name for the exporter */
+  name: string;
+  
+  /** File extension (e.g., "csv", "jsonl") */
+  extension: string;
+  
+  /** MIME type for the file */
+  mimeType: string;
+  
+  /** Convert data to string */
+  convert: (
+    data: unknown[],
+    columns: ExportColumn[],
+    options: ExportOptions
+  ) => string;
+}
+
+interface ExportColumn {
+  key: string;
+  header: string;
+}
+
+interface ExportOptions {
+  /** Whether to include headers (for formats that support it) */
+  includeHeaders: boolean;
+}
+```
+
+## Programmatic Export
+
+You can trigger exports programmatically:
+
+```tsx
+function MyTable() {
+  const table = useSeizenTable({
+    data,
+    columns,
+    plugins: [
+      FileExportPlugin.configure({
+        filename: "data-export",
+        exporters: [CsvExporter, JsonlExporter],
+      }),
+    ],
+  });
+
+  const openExport = () => {
+    table.plugin.open("file-export");
+  };
+
+  return (
+    <div>
+      <button onClick={openExport}>Export Data</button>
+      <SeizenTable table={table} />
+    </div>
+  );
+}
+```
+
+## Complete Example
+
+<CodeGroup>
+```tsx Complete Example
+import { useSeizenTable, SeizenTable } from "@izumisy/seizen-table";
+import {
+  FileExportPlugin,
+  CsvExporter,
+  JsonlExporter,
+  TsvExporter,
+  type Exporter,
+} from "@izumisy/seizen-table-plugins/file-export";
+import type { ColumnDef } from "@izumisy/seizen-table";
+
+// Custom XML exporter
+const XmlExporter: Exporter = {
+  id: "xml",
+  name: "XML",
+  extension: "xml",
+  mimeType: "application/xml;charset=utf-8;",
+  convert: (data, columns) => {
+    const lines = ['<?xml version="1.0" encoding="UTF-8"?>', "<rows>"];
+    
+    for (const row of data) {
+      const rowData = row as Record<string, unknown>;
+      lines.push("  <row>");
+      
+      for (const col of columns) {
+        const value = rowData[col.key];
+        const escaped = String(value ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+        lines.push(`    <${col.key}>${escaped}</${col.key}>`);
+      }
+      
+      lines.push("  </row>");
+    }
+    
+    lines.push("</rows>");
+    return lines.join("\n");
+  },
+};
+
+type Order = {
+  id: number;
+  customer: string;
+  product: string;
+  amount: number;
+  date: string;
+};
+
+const columns: ColumnDef<Order>[] = [
+  { accessorKey: "id", header: "Order ID" },
+  { accessorKey: "customer", header: "Customer" },
+  { accessorKey: "product", header: "Product" },
+  { accessorKey: "amount", header: "Amount" },
+  { accessorKey: "date", header: "Date" },
+];
+
+function OrdersTable({ orders }: { orders: Order[] }) {
+  const table = useSeizenTable({
+    data: orders,
+    columns,
+    plugins: [
+      FileExportPlugin.configure({
+        filename: "orders",
+        includeHeaders: true,
+        exporters: [
+          CsvExporter,
+          JsonlExporter,
+          TsvExporter,
+          XmlExporter,
+        ],
+      }),
+    ],
+  });
+
+  return <SeizenTable table={table} />;
+}
+```
+</CodeGroup>
+
+## Tips
+
+<Tip>
+  The export respects the current table state, including filters and sorting. Users will export exactly what they see.
+</Tip>
+
+<Tip>
+  For large datasets, consider implementing server-side export endpoints instead of client-side export to avoid browser memory limitations.
+</Tip>
+
+<Info>
+  Object and array values are automatically stringified to JSON format in CSV and TSV exports.
+</Info>

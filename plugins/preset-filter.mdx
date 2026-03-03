@@ -1,0 +1,423 @@
+---
+title: PresetFilterPlugin
+description: Quick filter buttons and global search in the table header for common filter patterns
+---
+
+The PresetFilterPlugin provides preset filter buttons and a global search bar in the table header. It's ideal for common filter patterns that users access frequently, like "Active Users", "High Value Orders", or "Recent Items".
+
+## Installation
+
+```bash
+npm install @izumisy/seizen-table-plugins
+```
+
+## Import
+
+```tsx
+import { PresetFilterPlugin } from "@izumisy/seizen-table-plugins/preset-filter";
+```
+
+## Basic Usage
+
+```tsx
+import { useSeizenTable, SeizenTable } from "@izumisy/seizen-table";
+import { PresetFilterPlugin } from "@izumisy/seizen-table-plugins/preset-filter";
+
+function OrdersTable() {
+  const table = useSeizenTable({
+    data,
+    columns,
+    plugins: [
+      PresetFilterPlugin.configure({
+        presets: [
+          {
+            id: "active",
+            label: "Active",
+            filters: [
+              { columnKey: "status", operator: "equals", value: "active" },
+            ],
+          },
+          {
+            id: "high-value",
+            label: "High Value",
+            filters: [
+              { columnKey: "amount", operator: "gte", value: "1000" },
+            ],
+          },
+        ],
+        enableGlobalSearch: true,
+      }),
+    ],
+  });
+
+  return <SeizenTable table={table} />;
+}
+```
+
+## Configuration
+
+<ParamField path="presets" type="Preset[]" required>
+  Array of preset filter definitions. Each preset represents a named filter that can be applied with one click.
+</ParamField>
+
+<ParamField path="allLabel" type="string" default="All">
+  Label for the "All" button that clears all filters
+</ParamField>
+
+<ParamField path="enableGlobalSearch" type="boolean" default="true">
+  Enable the global search bar for filtering across all columns
+</ParamField>
+
+<ParamField path="searchPlaceholder" type="string" default="Search...">
+  Placeholder text for the search input
+</ParamField>
+
+<ParamField path="searchDebounceMs" type="number" default="300">
+  Debounce delay for search input in milliseconds
+</ParamField>
+
+## Preset Definition
+
+Each preset has the following structure:
+
+```tsx
+interface Preset {
+  id: string;      // Unique identifier
+  label: string;   // Button display text
+  filters: FilterCondition[];
+}
+
+interface FilterCondition {
+  columnKey: string;       // Column accessor key
+  operator: FilterOperator; // Filter operator
+  value?: string;          // Filter value (optional for is_empty/is_not_empty)
+}
+```
+
+## Filter Operators
+
+### String Operators
+
+<CodeGroup>
+```tsx String Filters
+// Contains
+{ columnKey: "name", operator: "contains", value: "John" }
+
+// Exact match
+{ columnKey: "email", operator: "equals", value: "user@example.com" }
+
+// Starts with
+{ columnKey: "code", operator: "starts_with", value: "ORD" }
+
+// Ends with
+{ columnKey: "filename", operator: "ends_with", value: ".pdf" }
+
+// Is empty
+{ columnKey: "notes", operator: "is_empty" }
+
+// Is not empty
+{ columnKey: "description", operator: "is_not_empty" }
+```
+</CodeGroup>
+
+**Available operators:** `contains`, `not_contains`, `equals`, `not_equals`, `starts_with`, `ends_with`, `is_empty`, `is_not_empty`
+
+### Number Operators
+
+<CodeGroup>
+```tsx Number Filters
+// Equal to
+{ columnKey: "quantity", operator: "eq", value: "100" }
+
+// Greater than
+{ columnKey: "price", operator: "gt", value: "50" }
+
+// Greater than or equal
+{ columnKey: "amount", operator: "gte", value: "1000" }
+
+// Less than
+{ columnKey: "stock", operator: "lt", value: "10" }
+
+// Less than or equal
+{ columnKey: "discount", operator: "lte", value: "20" }
+
+// Not equal
+{ columnKey: "count", operator: "neq", value: "0" }
+```
+</CodeGroup>
+
+**Available operators:** `eq`, `neq`, `gt`, `gte`, `lt`, `lte`
+
+### Date Operators
+
+<CodeGroup>
+```tsx Date Filters
+// On exact date
+{ columnKey: "createdAt", operator: "on", value: "2024-01-15" }
+
+// Before date
+{ columnKey: "expiresAt", operator: "before", value: "2024-12-31" }
+
+// After date
+{ columnKey: "updatedAt", operator: "after", value: "2024-01-01" }
+```
+</CodeGroup>
+
+**Available operators:** `before`, `after`, `on`
+
+### Enum Operators
+
+<CodeGroup>
+```tsx Enum Filters
+// Is value
+{ columnKey: "status", operator: "is", value: "active" }
+
+// Is not value
+{ columnKey: "role", operator: "is_not", value: "guest" }
+```
+</CodeGroup>
+
+**Available operators:** `is`, `is_not`
+
+## Complete Examples
+
+### E-commerce Orders
+
+<CodeGroup>
+```tsx E-commerce Example
+import { useSeizenTable, SeizenTable } from "@izumisy/seizen-table";
+import { PresetFilterPlugin } from "@izumisy/seizen-table-plugins/preset-filter";
+import type { ColumnDef } from "@izumisy/seizen-table";
+
+type Order = {
+  id: string;
+  customer: string;
+  amount: number;
+  status: "pending" | "processing" | "completed" | "cancelled";
+  createdAt: string;
+};
+
+const columns: ColumnDef<Order>[] = [
+  { accessorKey: "id", header: "Order ID", meta: { filterType: "string" } },
+  { accessorKey: "customer", header: "Customer", meta: { filterType: "string" } },
+  { accessorKey: "amount", header: "Amount", meta: { filterType: "number" } },
+  { 
+    accessorKey: "status", 
+    header: "Status",
+    meta: { 
+      filterType: "enum",
+      filterEnumValues: ["pending", "processing", "completed", "cancelled"],
+    },
+  },
+  { accessorKey: "createdAt", header: "Date", meta: { filterType: "date" } },
+];
+
+function OrdersTable({ orders }: { orders: Order[] }) {
+  const table = useSeizenTable({
+    data: orders,
+    columns,
+    plugins: [
+      PresetFilterPlugin.configure({
+        presets: [
+          {
+            id: "pending",
+            label: "Pending",
+            filters: [
+              { columnKey: "status", operator: "equals", value: "pending" },
+            ],
+          },
+          {
+            id: "processing",
+            label: "Processing",
+            filters: [
+              { columnKey: "status", operator: "equals", value: "processing" },
+            ],
+          },
+          {
+            id: "high-value",
+            label: "High Value (>$1000)",
+            filters: [
+              { columnKey: "amount", operator: "gte", value: "1000" },
+            ],
+          },
+          {
+            id: "recent",
+            label: "Last 30 Days",
+            filters: [
+              { 
+                columnKey: "createdAt", 
+                operator: "after", 
+                value: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+                  .toISOString()
+                  .split('T')[0],
+              },
+            ],
+          },
+        ],
+        allLabel: "All Orders",
+        enableGlobalSearch: true,
+        searchPlaceholder: "Search orders...",
+      }),
+    ],
+  });
+
+  return <SeizenTable table={table} />;
+}
+```
+</CodeGroup>
+
+### User Management
+
+<CodeGroup>
+```tsx User Management Example
+import { useSeizenTable, SeizenTable } from "@izumisy/seizen-table";
+import { PresetFilterPlugin } from "@izumisy/seizen-table-plugins/preset-filter";
+import type { ColumnDef } from "@izumisy/seizen-table";
+
+type User = {
+  id: number;
+  name: string;
+  email: string;
+  role: "admin" | "user" | "guest";
+  status: "active" | "inactive";
+  lastLogin: string;
+};
+
+const columns: ColumnDef<User>[] = [
+  { accessorKey: "name", header: "Name", meta: { filterType: "string" } },
+  { accessorKey: "email", header: "Email", meta: { filterType: "string" } },
+  { 
+    accessorKey: "role", 
+    header: "Role",
+    meta: { 
+      filterType: "enum",
+      filterEnumValues: ["admin", "user", "guest"],
+    },
+  },
+  { 
+    accessorKey: "status", 
+    header: "Status",
+    meta: { 
+      filterType: "enum",
+      filterEnumValues: ["active", "inactive"],
+    },
+  },
+  { accessorKey: "lastLogin", header: "Last Login", meta: { filterType: "date" } },
+];
+
+function UsersTable({ users }: { users: User[] }) {
+  const table = useSeizenTable({
+    data: users,
+    columns,
+    plugins: [
+      PresetFilterPlugin.configure({
+        presets: [
+          {
+            id: "active-users",
+            label: "Active Users",
+            filters: [
+              { columnKey: "status", operator: "is", value: "active" },
+            ],
+          },
+          {
+            id: "admins",
+            label: "Administrators",
+            filters: [
+              { columnKey: "role", operator: "is", value: "admin" },
+            ],
+          },
+          {
+            id: "inactive",
+            label: "Inactive",
+            filters: [
+              { columnKey: "status", operator: "is", value: "inactive" },
+            ],
+          },
+          {
+            id: "no-recent-login",
+            label: "No Recent Login",
+            filters: [
+              { 
+                columnKey: "lastLogin", 
+                operator: "before", 
+                value: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)
+                  .toISOString()
+                  .split('T')[0],
+              },
+            ],
+          },
+        ],
+        allLabel: "All Users",
+        enableGlobalSearch: true,
+        searchPlaceholder: "Search users...",
+        searchDebounceMs: 500,
+      }),
+    ],
+  });
+
+  return <SeizenTable table={table} />;
+}
+```
+</CodeGroup>
+
+## Multiple Filter Conditions
+
+You can combine multiple filter conditions in a single preset using AND logic:
+
+```tsx
+PresetFilterPlugin.configure({
+  presets: [
+    {
+      id: "vip-active",
+      label: "VIP Active Customers",
+      filters: [
+        { columnKey: "status", operator: "equals", value: "active" },
+        { columnKey: "tier", operator: "equals", value: "vip" },
+        { columnKey: "totalSpent", operator: "gte", value: "10000" },
+      ],
+    },
+  ],
+})
+```
+
+## Column Requirements
+
+<Warning>
+  Columns must have `meta.filterType` defined for filtering to work. See the [FilterPlugin](/plugins/filter) documentation for details on configuring filterable columns.
+</Warning>
+
+```tsx
+const columns: ColumnDef<MyData>[] = [
+  {
+    accessorKey: "status",
+    header: "Status",
+    meta: { 
+      filterType: "enum",
+      filterEnumValues: ["active", "inactive"],
+    },
+  },
+  {
+    accessorKey: "amount",
+    header: "Amount",
+    meta: { filterType: "number" },
+  },
+];
+```
+
+## Tips
+
+<Tip>
+  Use descriptive preset labels that clearly indicate what data will be shown, like "High Value (>$1000)" instead of just "High Value".
+</Tip>
+
+<Tip>
+  Preset selection is exclusive - only one preset can be active at a time. Clicking a preset button while another is active will switch to the new preset.
+</Tip>
+
+<Info>
+  The global search works across all columns that have a `filterType` defined in their meta.
+</Info>
+
+<Info>
+  Multiple filter conditions within a single preset are combined with AND logic. All conditions must match for a row to be included.
+</Info>

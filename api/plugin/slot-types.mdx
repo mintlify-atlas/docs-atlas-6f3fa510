@@ -1,0 +1,475 @@
+---
+title: Slot Types
+description: Available slot types for rendering plugin UI
+---
+
+## Overview
+
+Seizen Table provides 5 slot types where plugins can render components. Each slot serves a different purpose in the table layout.
+
+```typescript
+type SlotType = "side-panel" | "header" | "footer" | "cell" | "inline-row";
+```
+
+---
+
+## side-panel
+
+IDE-style vertical tab side panel on the left or right side of the table.
+
+### Use Cases
+
+- Navigation panels (column controls, filters)
+- Detail views (row details, inspectors)
+- Tool panels (bulk actions, export options)
+
+### Configuration
+
+```typescript
+interface SidePanelSlot {
+  position: "left-sider" | "right-sider";
+  header?: string | ReactNode;
+  render: () => ReactNode;
+}
+```
+
+<ParamField path="position" type="'left-sider' | 'right-sider'" required>
+  Panel position relative to the table
+</ParamField>
+
+<ParamField path="header" type="string | ReactNode">
+  Header content displayed at the top of the panel
+</ParamField>
+
+<ParamField path="render" type="() => ReactNode" required>
+  Render function for panel content. Use `usePluginArgs()` inside to access configuration.
+</ParamField>
+
+### Example
+
+```tsx
+import { definePlugin, usePluginContext } from "@izumisy/seizen-table/plugin";
+import { z } from "zod";
+
+function FilterPanel() {
+  const { columns } = usePluginContext();
+  return (
+    <div style={{ padding: 16 }}>
+      <h3>Filters</h3>
+      {columns.map((col) => (
+        <div key={col.key}>{col.header}</div>
+      ))}
+    </div>
+  );
+}
+
+export const FilterPlugin = definePlugin({
+  id: "filter",
+  name: "Filter",
+  args: z.object({ width: z.number().default(320) }),
+  slots: {
+    sidePanel: {
+      position: "right-sider",
+      header: "Filters",
+      render: FilterPanel,
+    },
+  },
+});
+```
+
+### Visual Reference
+
+```
+┌────────────┬─────────────────────┬────────────┐
+│ Left Panel │      Table          │ Right Panel│
+│            │                     │            │
+│ (optional) │  ┌──────────────┐   │ (optional) │
+│            │  │ Table Header │   │            │
+│            │  ├──────────────┤   │            │
+│            │  │ Table Body   │   │            │
+│            │  └──────────────┘   │            │
+└────────────┴─────────────────────┴────────────┘
+```
+
+---
+
+## header
+
+Renders between the table header and body rows.
+
+### Use Cases
+
+- Global search bars
+- Filter chips display
+- Action toolbars
+- Notification banners
+
+### Configuration
+
+```typescript
+interface HeaderSlot {
+  render: () => ReactNode;
+}
+```
+
+<ParamField path="render" type="() => ReactNode" required>
+  Render function for header content. Use `usePluginArgs()` inside to access configuration.
+</ParamField>
+
+### Example
+
+```tsx
+import { definePlugin, usePluginContext } from "@izumisy/seizen-table/plugin";
+import { z } from "zod";
+
+function GlobalSearchHeader() {
+  const { table } = usePluginContext();
+
+  return (
+    <div style={{ padding: "8px 16px", borderBottom: "1px solid #e5e7eb" }}>
+      <input
+        type="text"
+        placeholder="Search..."
+        onChange={(e) => table.setGlobalFilter(e.target.value)}
+        style={{ width: "100%" }}
+      />
+    </div>
+  );
+}
+
+export const GlobalSearchPlugin = definePlugin({
+  id: "global-search",
+  name: "Global Search",
+  args: z.object({}),
+  slots: {
+    header: {
+      render: GlobalSearchHeader,
+    },
+  },
+});
+```
+
+### Visual Reference
+
+```
+┌─────────────────────────────┐
+│      Table Header           │
+├─────────────────────────────┤
+│  Header Slot (your plugin)  │  ← Renders here
+├─────────────────────────────┤
+│      Table Body             │
+│                             │
+└─────────────────────────────┘
+```
+
+---
+
+## footer
+
+Renders below the table body.
+
+### Use Cases
+
+- Pagination controls
+- Summary statistics
+- Bulk action buttons
+- Status indicators
+
+### Configuration
+
+```typescript
+interface FooterSlot {
+  render: () => ReactNode;
+}
+```
+
+<ParamField path="render" type="() => ReactNode" required>
+  Render function for footer content. Use `usePluginArgs()` inside to access configuration.
+</ParamField>
+
+### Example
+
+```tsx
+import { definePlugin, usePluginContext } from "@izumisy/seizen-table/plugin";
+import { z } from "zod";
+
+function TableFooter() {
+  const { data, selectedRows } = usePluginContext();
+
+  return (
+    <div style={{ padding: "8px 16px", borderTop: "1px solid #e5e7eb" }}>
+      <p>
+        {selectedRows.length} of {data.length} rows selected
+      </p>
+    </div>
+  );
+}
+
+export const FooterPlugin = definePlugin({
+  id: "footer",
+  name: "Footer",
+  args: z.object({}),
+  slots: {
+    footer: {
+      render: TableFooter,
+    },
+  },
+});
+```
+
+### Visual Reference
+
+```
+┌─────────────────────────────┐
+│      Table Header           │
+├─────────────────────────────┤
+│      Table Body             │
+│                             │
+├─────────────────────────────┤
+│  Footer Slot (your plugin)  │  ← Renders here
+└─────────────────────────────┘
+```
+
+---
+
+## cell
+
+Custom cell renderer applied to all columns. First matching plugin wins.
+
+### Use Cases
+
+- Custom data type renderers (dates, currency, badges)
+- Conditional formatting
+- Interactive cell components
+- Cell-level actions
+
+### Configuration
+
+```typescript
+interface CellSlot<TData = unknown> {
+  render: (
+    cell: Cell<TData, unknown>,
+    column: Column<TData, unknown>,
+    row: Row<TData>
+  ) => ReactNode;
+}
+```
+
+<ParamField path="render" type="(cell, column, row) => ReactNode" required>
+  Render function receiving TanStack Table primitives. Return `null` or `undefined` to fall through to the next plugin or default renderer.
+</ParamField>
+
+### Example: Custom Date Renderer
+
+```tsx
+import { definePlugin } from "@izumisy/seizen-table/plugin";
+import { z } from "zod";
+import type { Cell, Column, Row } from "@tanstack/react-table";
+
+function DateCellRenderer(
+  cell: Cell<unknown, unknown>,
+  column: Column<unknown, unknown>,
+  row: Row<unknown>
+) {
+  const value = cell.getValue();
+  const meta = column.columnDef.meta;
+
+  // Only render if this is a date column
+  if (meta?.filterType !== "date") return null;
+
+  const date = value instanceof Date ? value : new Date(String(value));
+  return <span>{date.toLocaleDateString()}</span>;
+}
+
+export const DateFormatterPlugin = definePlugin({
+  id: "date-formatter",
+  name: "Date Formatter",
+  args: z.object({}),
+  slots: {
+    cell: {
+      render: DateCellRenderer,
+    },
+  },
+});
+```
+
+### Example: Conditional Badge
+
+```tsx
+function StatusCellRenderer(
+  cell: Cell<unknown, unknown>,
+  column: Column<unknown, unknown>
+) {
+  if (column.id !== "status") return null;
+
+  const status = String(cell.getValue());
+  const colors = {
+    active: "green",
+    inactive: "gray",
+    pending: "yellow",
+  };
+
+  return (
+    <span
+      style={{
+        padding: "4px 8px",
+        borderRadius: "4px",
+        backgroundColor: colors[status] || "gray",
+        color: "white",
+      }}
+    >
+      {status}
+    </span>
+  );
+}
+```
+
+### Fallthrough Behavior
+
+<Warning>
+  Only the **first** plugin that returns a non-null value will render the cell. Return `null` or `undefined` to allow other plugins or the default renderer to handle the cell.
+</Warning>
+
+```tsx
+// ✅ Good: Returns null for non-matching columns
+function MyRenderer(cell, column) {
+  if (column.id !== "status") return null; // Falls through
+  return <Badge value={cell.getValue()} />;
+}
+
+// ❌ Bad: Always renders, blocking other plugins
+function MyRenderer(cell, column) {
+  return <span>{String(cell.getValue())}</span>; // No fallthrough!
+}
+```
+
+---
+
+## inline-row
+
+Renders below a specific row when opened. First matching plugin wins.
+
+### Use Cases
+
+- Expandable row details
+- Nested tables
+- Related data display
+- Inline forms for editing
+
+### Configuration
+
+```typescript
+interface InlineRowSlot<TData = unknown> {
+  render: (row: Row<TData>) => ReactNode;
+}
+```
+
+<ParamField path="render" type="(row: Row<TData>) => ReactNode" required>
+  Render function receiving the parent row. Return `null` or `undefined` to fall through to the next plugin.
+</ParamField>
+
+### Example: Row Expansion
+
+```tsx
+import { definePlugin, usePluginContext } from "@izumisy/seizen-table/plugin";
+import { z } from "zod";
+import type { Row } from "@tanstack/react-table";
+
+function InlineRowDetail(row: Row<unknown>) {
+  const rowData = row.original as Record<string, unknown>;
+
+  return (
+    <div style={{ padding: 16, backgroundColor: "#f9fafb" }}>
+      <h4>Details for Row {row.id}</h4>
+      <pre>{JSON.stringify(rowData, null, 2)}</pre>
+    </div>
+  );
+}
+
+export const InlineDetailPlugin = definePlugin({
+  id: "inline-detail",
+  name: "Inline Detail",
+  args: z.object({}),
+  slots: {
+    inlineRow: {
+      render: InlineRowDetail,
+    },
+  },
+});
+```
+
+### Usage with Row Expansion
+
+```tsx
+import { useSeizenTable } from "@izumisy/seizen-table";
+
+function MyTable() {
+  const table = useSeizenTable({
+    data,
+    columns,
+    plugins: [InlineDetailPlugin.configure({})],
+    enableRowExpansion: true, // Enable row expansion
+  });
+
+  return (
+    <SeizenTable.Root table={table}>
+      <SeizenTable.Content />
+    </SeizenTable.Root>
+  );
+}
+```
+
+### Visual Reference
+
+```
+┌─────────────────────────────┐
+│  Row 1                      │
+├─────────────────────────────┤  ← Row expanded
+│  Inline Row Slot            │  ← Your plugin renders here
+├─────────────────────────────┤
+│  Row 2                      │
+├─────────────────────────────┤
+│  Row 3                      │
+└─────────────────────────────┘
+```
+
+---
+
+## Slot Priority
+
+When multiple plugins use the same slot:
+
+<Tip>
+  - **side-panel**: Only one plugin can occupy each position (`left-sider` or `right-sider`). The first plugin wins.
+  - **header/footer**: All plugins render in order they appear in the `plugins` array.
+  - **cell/inline-row**: First plugin that returns a non-null value wins. Return `null` to allow fallthrough.
+</Tip>
+
+## Accessing Context in Slots
+
+All slot render functions can use plugin context hooks:
+
+```tsx
+import { usePluginContext, usePluginArgs } from "@izumisy/seizen-table/plugin";
+
+function MySlotComponent() {
+  // Access table instance, data, events
+  const { table, data, selectedRows, useEvent } = usePluginContext();
+
+  // Access validated plugin configuration
+  const args = usePluginArgs<MyConfigType>();
+
+  // Subscribe to events
+  useEvent("selection-change", (rows) => {
+    console.log("Selection changed", rows);
+  });
+
+  return <div>...</div>;
+}
+```
+
+## Related
+
+- [`definePlugin`](/api/plugin/define-plugin) - Create plugins with slots
+- [`usePluginContext`](/api/plugin/plugin-context#useplugincontext) - Access table context in slots
+- [`usePluginArgs`](/api/plugin/plugin-context#usepluginargs) - Access plugin configuration

@@ -1,0 +1,111 @@
+---
+title: Installation
+description: Install Seizen Table in your React project
+---
+
+# Installation
+
+Get started with Seizen Table by installing the package in your React project.
+
+## Prerequisites
+
+Seizen Table requires the following peer dependencies:
+
+- **React** 19 or higher
+- **React DOM** 19 or higher  
+- **Zod** 4 or higher
+
+<Note>
+  Make sure your project meets these requirements before installing Seizen Table.
+</Note>
+
+## Install the Package
+
+Install `@izumisy/seizen-table` using your preferred package manager:
+
+<CodeGroup>
+
+```bash npm
+npm install @izumisy/seizen-table
+```
+
+```bash yarn
+yarn add @izumisy/seizen-table
+```
+
+```bash pnpm
+pnpm add @izumisy/seizen-table
+```
+
+</CodeGroup>
+
+The package includes TypeScript definitions and CSS styles out of the box.
+
+## Import Styles
+
+Seizen Table requires its CSS to be imported in your application. Add this to your root component or entry file:
+
+```tsx App.tsx
+import "@izumisy/seizen-table/styles.css";
+```
+
+For example, in a typical React app:
+
+```tsx main.tsx
+import React from "react";
+import ReactDOM from "react-dom/client";
+import "@izumisy/seizen-table/styles.css";
+import App from "./App";
+
+ReactDOM.createRoot(document.getElementById("root")!).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
+```
+
+## Verify Installation
+
+To verify the installation was successful, try importing the main exports:
+
+```tsx
+import { useSeizenTable, SeizenTable, type ColumnDef } from "@izumisy/seizen-table";
+```
+
+If there are no TypeScript errors, you're ready to go!
+
+## Optional: Install Plugins
+
+Seizen Table has official plugins that add powerful features. Install them separately as needed:
+
+<CodeGroup>
+
+```bash npm
+npm install @izumisy/seizen-table-plugins
+```
+
+```bash yarn
+yarn add @izumisy/seizen-table-plugins
+```
+
+```bash pnpm
+pnpm add @izumisy/seizen-table-plugins
+```
+
+</CodeGroup>
+
+Available plugins include:
+- **RowDetail** - Expandable row details in a side panel
+- **FilterBuilder** - Advanced filtering UI
+- **ColumnCustomizer** - Show/hide and reorder columns
+- **DataExport** - Export table data to various formats
+
+<Note>
+  Plugins are optional. The core `@izumisy/seizen-table` package works standalone.
+</Note>
+
+## Next Steps
+
+<Card title="Quick Start" icon="rocket" href="/get-started/quickstart">
+  Build your first table in under 5 minutes
+</Card>

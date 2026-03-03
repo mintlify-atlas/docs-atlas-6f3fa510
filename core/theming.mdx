@@ -1,0 +1,297 @@
+---
+title: 'Theming'
+description: 'Customize table appearance using CSS variables'
+---
+
+## Overview
+
+Seizen Table is styled using CSS Variables, making it easy to customize the appearance without writing complex CSS or using CSS-in-JS libraries. All CSS variables have sensible defaults that work out of the box.
+
+## Quick Start
+
+Define CSS variables in your stylesheet to customize the table:
+
+```css
+:root {
+  --szui-color-text: #1f2937;
+  --szui-color-bg: #ffffff;
+  --szui-border-color: #e5e7eb;
+}
+```
+
+## Color Variables
+
+### Text and Background
+
+```css
+:root {
+  /* Primary text color */
+  --szui-color-text: #1f2937;
+  
+  /* Table background color */
+  --szui-color-bg: #ffffff;
+  
+  /* Header background color */
+  --szui-header-bg: #f9fafb;
+  
+  /* Header text color */
+  --szui-header-color: #6b7280;
+}
+```
+
+### Interactive States
+
+```css
+:root {
+  /* Row hover background */
+  --szui-row-hover-bg: #f3f4f6;
+  
+  /* Selected row background */
+  --szui-row-selected-bg: #eff6ff;
+}
+```
+
+### Borders
+
+```css
+:root {
+  /* Border color */
+  --szui-border-color: #e5e7eb;
+  
+  /* Border width */
+  --szui-border-width: 1px;
+  
+  /* Border radius for table container */
+  --szui-border-radius: 8px;
+}
+```
+
+## Typography Variables
+
+```css
+:root {
+  /* Font family */
+  --szui-font-family: system-ui, -apple-system, sans-serif;
+  
+  /* Base font size */
+  --szui-font-size: 14px;
+  
+  /* Line height */
+  --szui-line-height: 1.5;
+  
+  /* Header font size */
+  --szui-header-font-size: 12px;
+  
+  /* Header font weight */
+  --szui-header-font-weight: 600;
+}
+```
+
+## Spacing Variables
+
+```css
+:root {
+  /* Cell horizontal padding */
+  --szui-cell-padding-x: 12px;
+  
+  /* Cell vertical padding */
+  --szui-cell-padding-y: 10px;
+}
+```
+
+## Complete Variable List
+
+Here's a complete list of all available CSS variables with their defaults:
+
+```css
+:root {
+  /* Colors */
+  --szui-color-text: #1f2937;
+  --szui-color-bg: #ffffff;
+  --szui-header-bg: #f9fafb;
+  --szui-header-color: #6b7280;
+  --szui-border-color: #e5e7eb;
+  --szui-row-hover-bg: #f3f4f6;
+  --szui-row-selected-bg: #eff6ff;
+
+  /* Typography */
+  --szui-font-family: system-ui, -apple-system, sans-serif;
+  --szui-font-size: 14px;
+  --szui-line-height: 1.5;
+  --szui-header-font-size: 12px;
+  --szui-header-font-weight: 600;
+
+  /* Spacing */
+  --szui-cell-padding-x: 12px;
+  --szui-cell-padding-y: 10px;
+
+  /* Border */
+  --szui-border-width: 1px;
+  --szui-border-radius: 8px;
+}
+```
+
+## Dark Mode
+
+Implement dark mode using media queries or class-based theming:
+
+### Media Query Approach
+
+```css
+@media (prefers-color-scheme: dark) {
+  :root {
+    --szui-color-text: #f9fafb;
+    --szui-color-bg: #111827;
+    --szui-header-bg: #1f2937;
+    --szui-header-color: #9ca3af;
+    --szui-border-color: #374151;
+    --szui-row-hover-bg: #374151;
+    --szui-row-selected-bg: #1e3a5f;
+  }
+}
+```
+
+### Class-based Approach
+
+```css
+/* Light mode (default) */
+:root {
+  --szui-color-text: #1f2937;
+  --szui-color-bg: #ffffff;
+  --szui-header-bg: #f9fafb;
+  --szui-header-color: #6b7280;
+  --szui-border-color: #e5e7eb;
+  --szui-row-hover-bg: #f3f4f6;
+  --szui-row-selected-bg: #eff6ff;
+}
+
+/* Dark mode */
+.dark {
+  --szui-color-text: #f9fafb;
+  --szui-color-bg: #111827;
+  --szui-header-bg: #1f2937;
+  --szui-header-color: #9ca3af;
+  --szui-border-color: #374151;
+  --szui-row-hover-bg: #374151;
+  --szui-row-selected-bg: #1e3a5f;
+}
+```
+
+```tsx
+function App() {
+  const [isDark, setIsDark] = useState(false);
+
+  return (
+    <div className={isDark ? 'dark' : ''}>
+      <SeizenTable table={table} />
+    </div>
+  );
+}
+```
+
+## Scoped Theming
+
+Apply different themes to different tables on the same page:
+
+```css
+.table-compact {
+  --szui-cell-padding-x: 8px;
+  --szui-cell-padding-y: 6px;
+  --szui-font-size: 12px;
+}
+
+.table-spacious {
+  --szui-cell-padding-x: 16px;
+  --szui-cell-padding-y: 12px;
+  --szui-font-size: 16px;
+}
+```
+
+```tsx
+<SeizenTable table={compactTable} className="table-compact" />
+<SeizenTable table={spaciousTable} className="table-spacious" />
+```
+
+## Brand Theming Examples
+
+### Professional Blue
+
+```css
+:root {
+  --szui-color-text: #1e293b;
+  --szui-color-bg: #ffffff;
+  --szui-header-bg: #f1f5f9;
+  --szui-header-color: #475569;
+  --szui-border-color: #cbd5e1;
+  --szui-row-hover-bg: #f8fafc;
+  --szui-row-selected-bg: #dbeafe;
+}
+```
+
+### Warm Gray
+
+```css
+:root {
+  --szui-color-text: #292524;
+  --szui-color-bg: #fafaf9;
+  --szui-header-bg: #f5f5f4;
+  --szui-header-color: #57534e;
+  --szui-border-color: #e7e5e4;
+  --szui-row-hover-bg: #fafaf9;
+  --szui-row-selected-bg: #fef3c7;
+}
+```
+
+### High Contrast
+
+```css
+:root {
+  --szui-color-text: #000000;
+  --szui-color-bg: #ffffff;
+  --szui-header-bg: #f0f0f0;
+  --szui-header-color: #000000;
+  --szui-border-color: #000000;
+  --szui-border-width: 2px;
+  --szui-row-hover-bg: #e0e0e0;
+  --szui-row-selected-bg: #ffeb3b;
+}
+```
+
+## Custom Styling Beyond Variables
+
+For advanced customization beyond CSS variables, you can:
+
+1. **Add custom CSS classes** using the `className` prop
+2. **Use custom cell renderers** in column definitions
+3. **Build custom table UI** with compound components
+4. **Access TanStack Table directly** via `table._tanstackTable`
+
+### Example: Custom Row Styling
+
+```tsx
+import { SeizenTable } from '@izumisy/seizen-table';
+import './custom-styles.css';
+
+function App() {
+  const table = useSeizenTable({ data, columns });
+
+  return <SeizenTable table={table} className="custom-table" />;
+}
+```
+
+```css
+/* custom-styles.css */
+.custom-table tbody tr:nth-child(even) {
+  background-color: var(--szui-header-bg);
+}
+
+.custom-table tbody tr:hover {
+  transform: scale(1.01);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+}
+```
+
+<Note>
+CSS Variables make it easy to implement theming without learning a complex styling API. Simply define the variables you want to customize, and the rest will use sensible defaults.
+</Note>

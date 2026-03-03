@@ -1,0 +1,374 @@
+---
+title: Plugin Development
+description: Create custom plugins to extend Seizen Table functionality
+---
+
+Seizen Table's plugin system allows you to add custom UI components and functionality using a slot-based architecture. Plugins can render in multiple locations (slots) and integrate seamlessly with the table.
+
+## Plugin Architecture
+
+### Available Slots
+
+Plugins can render components in these slots:
+
+| Slot | Description | Use Cases |
+|------|-------------|----------|
+| `side-panel` | IDE-style vertical tab panel (left or right) | Details, inspectors, navigation, bulk actions |
+| `header` | Between table header and body rows | Search bars, filters, toolbars |
+| `footer` | Below the table | Pagination, summary statistics |
+| `cell` | Custom cell renderer for all columns | Special formatting, interactive cells |
+| `inline-row` | Below a specific row when opened | Row details, nested data |
+
+### Plugin Types
+
+Seizen Table plugins are defined using TypeScript with full type safety:
+
+```tsx
+import type { SeizenTablePlugin } from "@izumisy/seizen-table/plugin";
+
+interface SeizenTablePlugin<TData = unknown> {
+  id: string;                              // Unique plugin identifier
+  name: string;                            // Display name (used in vertical tabs)
+  slots: PluginSlots<TData>;              // Slot configurations
+  contextMenuItems?: ContextMenuItemsSlot; // Context menu items
+  _args?: unknown;                         // Plugin configuration (internal)
+}
+```
+
+## Creating a Plugin with definePlugin
+
+The `definePlugin` function creates type-safe plugins with configuration validation using Zod schemas.
+
+### Basic Plugin Structure
+
+<Steps>
+  <Step title="Import dependencies">
+    ```tsx
+    import { z } from "zod";
+    import { definePlugin, usePluginContext } from "@izumisy/seizen-table/plugin";
+    ```
+  </Step>
+  
+  <Step title="Define configuration schema">
+    ```tsx
+    const MyPluginSchema = z.object({
+      enableFeature: z.boolean().default(true),
+      customLabel: z.string().optional(),
+    });
+    ```
+  </Step>
+  
+  <Step title="Create the plugin">
+    ```tsx
+    const MyPlugin = definePlugin({
+      id: "my-plugin",
+      name: "My Plugin",
+      args: MyPluginSchema,
+      slots: {
+        sidePanel: {
+          position: "right-sider",
+          render: () => <MyPluginPanel />,
+        },
+      },
+    });
+    ```
+  </Step>
+  
+  <Step title="Use the plugin">
+    ```tsx
+    <SeizenTable
+      plugins={[
+        MyPlugin.configure({ enableFeature: true, customLabel: "Custom" })
+      ]}
+    />
+    ```
+  </Step>
+</Steps>
+
+## Complete Plugin Example: Bulk Actions
+
+Here's a complete example of a side panel plugin with configuration:
+
+```tsx
+import { z } from "zod";
+import { definePlugin, usePluginContext, usePluginArgs } from "@izumisy/seizen-table/plugin";
+
+// 1. Define configuration schema
+const BulkActionsSchema = z.object({
+  enableDelete: z.boolean().default(true),
+  enableExport: z.boolean().default(true),
+});
+
+// 2. Create the panel component
+function BulkActionsPanel() {
+  const { selectedRows } = usePluginContext();
+  const args = usePluginArgs<z.infer<typeof BulkActionsSchema>>();
+
+  if (selectedRows.length === 0) {
+    return <div className="p-4 text-gray-500">No rows selected</div>;
+  }
+
+  return (
+    <div className="p-4 space-y-2">
+      <div className="font-semibold">{selectedRows.length} rows selected</div>
+      
+      {args.enableDelete && (
+        <button className="w-full btn-danger" onClick={() => handleDelete(selectedRows)}>
+          Delete Selected
+        </button>
+      )}
+      
+      {args.enableExport && (
+        <button className="w-full btn-primary" onClick={() => handleExport(selectedRows)}>
+          Export Selected
+        </button>
+      )}
+    </div>
+  );
+}
+
+// 3. Define the plugin
+const BulkActions = definePlugin({
+  id: "bulk-actions",
+  name: "Bulk Actions",
+  args: BulkActionsSchema,
+  slots: {
+    sidePanel: {
+      position: "right-sider",
+      header: "Bulk Actions",
+      render: () => <BulkActionsPanel />,
+    },
+  },
+});
+
+// 4. Usage
+function App() {
+  return (
+    <SeizenTable
+      data={users}
+      columns={columns}
+      plugins={[
+        BulkActions.configure({ 
+          enableDelete: true,
+          enableExport: false 
+        })
+      ]}
+    />
+  );
+}
+```
+
+## Plugin Context and Hooks
+
+### usePluginContext
+
+Access table state and methods from within plugin components:
+
+```tsx
+import { usePluginContext } from "@izumisy/seizen-table/plugin";
+
+function MyPluginComponent() {
+  const context = usePluginContext();
+  
+  // Available context:
+  context.selectedRows;        // Currently selected rows
+  context.table;              // TanStack Table instance
+  // ... and more
+}
+```
+
+### usePluginArgs
+
+Access validated plugin configuration inside render functions:
+
+```tsx
+import { usePluginArgs } from "@izumisy/seizen-table/plugin";
+
+function MyPluginPanel() {
+  const args = usePluginArgs<z.infer<typeof MyPluginSchema>>();
+  
+  return <div>{args.customLabel}</div>;
+}
+```
+
+## Slot Types Reference
+
+### SidePanel Slot
+
+```tsx
+interface SidePanelSlot {
+  position: "left-sider" | "right-sider";
+  header?: string | ReactNode;
+  render: () => ReactNode;
+}
+```
+
+**Example:**
+
+```tsx
+sidePanel: {
+  position: "right-sider",
+  header: "Details",
+  render: () => <DetailsPanel />,
+}
+```
+
+### Header Slot
+
+```tsx
+interface HeaderSlot {
+  render: () => ReactNode;
+}
+```
+
+**Example:**
+
+```tsx
+header: {
+  render: () => <SearchBar />,
+}
+```
+
+### Footer Slot
+
+```tsx
+interface FooterSlot {
+  render: () => ReactNode;
+}
+```
+
+**Example:**
+
+```tsx
+footer: {
+  render: () => <Pagination />,
+}
+```
+
+### Cell Slot
+
+```tsx
+interface CellSlot<TData = unknown> {
+  render: (
+    cell: Cell<TData, unknown>,
+    column: Column<TData, unknown>,
+    row: Row<TData>
+  ) => ReactNode;
+}
+```
+
+**Example:**
+
+```tsx
+cell: {
+  render: (cell, column, row) => {
+    if (column.id === "status") {
+      return <StatusBadge status={cell.getValue()} />;
+    }
+    return flexRender(cell.column.columnDef.cell, cell.getContext());
+  },
+}
+```
+
+### InlineRow Slot
+
+```tsx
+interface InlineRowSlot<TData = unknown> {
+  render: (row: Row<TData>) => ReactNode;
+}
+```
+
+**Example:**
+
+```tsx
+inlineRow: {
+  render: (row) => <UserDetails user={row.original} />,
+}
+```
+
+## Multiple Slots Example
+
+A plugin can use multiple slots:
+
+```tsx
+const AdvancedPlugin = definePlugin({
+  id: "advanced",
+  name: "Advanced Features",
+  args: z.object({}),
+  slots: {
+    sidePanel: {
+      position: "right-sider",
+      render: () => <AdvancedPanel />,
+    },
+    header: {
+      render: () => <AdvancedToolbar />,
+    },
+    footer: {
+      render: () => <AdvancedStats />,
+    },
+  },
+});
+```
+
+## Plugin Configuration Best Practices
+
+<Note>
+  **Use Zod defaults:** Provide sensible defaults in your schema so plugins work out of the box.
+  
+  ```tsx
+  z.object({
+    enabled: z.boolean().default(true),
+    position: z.enum(["top", "bottom"]).default("top"),
+  })
+  ```
+</Note>
+
+<Warning>
+  **Validate configuration:** Always use Zod schemas to validate plugin configuration. This prevents runtime errors and provides better DX with TypeScript.
+</Warning>
+
+## Exported Plugin Types
+
+The plugin API exports these types from `@izumisy/seizen-table/plugin`:
+
+```tsx
+// Core plugin types
+export type {
+  SeizenTablePlugin,
+  PluginContext,
+  PluginPosition,
+  
+  // Slot types
+  SlotType,
+  PluginSlots,
+  SidePanelSlot,
+  HeaderSlot,
+  FooterSlot,
+  CellSlot,
+  InlineRowSlot,
+  ContextMenuItemsSlot,
+  
+  // Define options
+  DefinePluginOptions,
+  DefinePluginSlots,
+  DefineSlotPluginOptions,
+};
+
+// Core plugin functions
+export {
+  definePlugin,
+  hasSidePanelSlot,
+  getSidePanelSlot,
+};
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Context Menu" icon="mouse-pointer" href="/advanced/context-menu">
+    Add context menu items to your plugins
+  </Card>
+  <Card title="Custom Rendering" icon="code" href="/advanced/custom-rendering">
+    Take full control of table rendering
+  </Card>
+</CardGroup>

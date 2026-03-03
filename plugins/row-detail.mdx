@@ -1,0 +1,246 @@
+---
+title: RowDetailPlugin
+description: Display detailed row information in a side panel when a row is clicked
+---
+
+The RowDetailPlugin displays detailed information about a selected row in a side panel. It's commonly used with the `row-click` event to show row details when users click on table rows.
+
+## Installation
+
+```bash
+npm install @izumisy/seizen-table-plugins
+```
+
+## Import
+
+```tsx
+import { RowDetailPlugin } from "@izumisy/seizen-table-plugins/row-detail";
+```
+
+## Basic Usage
+
+```tsx
+import { useSeizenTable, SeizenTable, useSeizenTableEvent } from "@izumisy/seizen-table";
+import { RowDetailPlugin } from "@izumisy/seizen-table-plugins/row-detail";
+
+function UsersTable() {
+  const table = useSeizenTable({
+    data,
+    columns,
+    plugins: [RowDetailPlugin.configure({ width: 350 })],
+  });
+
+  // Open side panel when row is clicked
+  useSeizenTableEvent(table, "row-click", (row) => {
+    table.plugin.open("row-detail", { row });
+  });
+
+  return <SeizenTable table={table} />;
+}
+```
+
+## Configuration
+
+<ParamField path="width" type="number" default="320">
+  Width of the row detail side panel in pixels
+</ParamField>
+
+## Features
+
+The RowDetailPlugin automatically:
+
+- **Displays all fields** - Shows all properties of the selected row object
+- **Formats values** - Formats object and array values as pretty-printed JSON
+- **Updates dynamically** - Updates content when clicking different rows while panel is open
+- **Handles nested data** - Properly displays nested objects and arrays
+
+## Opening the Panel
+
+There are two ways to open the row detail panel:
+
+### Using the row-click Event
+
+The most common pattern is to open the panel when a row is clicked:
+
+```tsx
+import { useSeizenTableEvent } from "@izumisy/seizen-table";
+
+function MyTable() {
+  const table = useSeizenTable({
+    data,
+    columns,
+    plugins: [RowDetailPlugin.configure({ width: 350 })],
+  });
+
+  useSeizenTableEvent(table, "row-click", (row) => {
+    table.plugin.open("row-detail", { row });
+  });
+
+  return <SeizenTable table={table} />;
+}
+```
+
+### Programmatic Control
+
+You can also open the panel programmatically for a specific row:
+
+```tsx
+function MyTable() {
+  const table = useSeizenTable({
+    data,
+    columns,
+    plugins: [RowDetailPlugin.configure({ width: 350 })],
+  });
+
+  const showUserDetails = (user: User) => {
+    table.plugin.open("row-detail", { row: user });
+  };
+
+  return (
+    <div>
+      <button onClick={() => showUserDetails(data[0])}>
+        Show First User
+      </button>
+      <SeizenTable table={table} />
+    </div>
+  );
+}
+```
+
+## Dynamic Updates
+
+When the row detail panel is already open, clicking on a different row will update the panel content:
+
+```tsx
+useSeizenTableEvent(table, "row-click", (row) => {
+  // Panel automatically updates if already open
+  table.plugin.open("row-detail", { row });
+});
+```
+
+## Value Formatting
+
+The plugin automatically formats different value types:
+
+- **Primitives** - Displayed as-is (strings, numbers, booleans)
+- **null/undefined** - Displayed as empty
+- **Objects** - Pretty-printed as JSON
+- **Arrays** - Pretty-printed as JSON
+- **Dates** - Converted to string representation
+
+<CodeGroup>
+```tsx Example Data
+type User = {
+  id: number;
+  name: string;
+  email: string;
+  metadata: {
+    lastLogin: string;
+    preferences: string[];
+  };
+  tags: string[];
+};
+
+const user = {
+  id: 1,
+  name: "John Doe",
+  email: "john@example.com",
+  metadata: {
+    lastLogin: "2024-01-15",
+    preferences: ["email", "sms"],
+  },
+  tags: ["premium", "verified"],
+};
+
+// When opened, the panel will display:
+// id: 1
+// name: John Doe
+// email: john@example.com
+// metadata: { "lastLogin": "2024-01-15", "preferences": ["email", "sms"] }
+// tags: ["premium", "verified"]
+```
+</CodeGroup>
+
+## Complete Example
+
+<CodeGroup>
+```tsx Complete Example
+import { useSeizenTable, SeizenTable, useSeizenTableEvent } from "@izumisy/seizen-table";
+import { RowDetailPlugin } from "@izumisy/seizen-table-plugins/row-detail";
+import type { ColumnDef } from "@izumisy/seizen-table";
+
+type Customer = {
+  id: number;
+  name: string;
+  email: string;
+  company: string;
+  status: string;
+  metadata: {
+    signupDate: string;
+    totalOrders: number;
+    lastOrderDate: string;
+  };
+  tags: string[];
+};
+
+const columns: ColumnDef<Customer>[] = [
+  { accessorKey: "id", header: "ID" },
+  { accessorKey: "name", header: "Name" },
+  { accessorKey: "email", header: "Email" },
+  { accessorKey: "company", header: "Company" },
+  { accessorKey: "status", header: "Status" },
+];
+
+function CustomersTable({ customers }: { customers: Customer[] }) {
+  const table = useSeizenTable({
+    data: customers,
+    columns,
+    plugins: [
+      RowDetailPlugin.configure({ width: 400 }),
+    ],
+  });
+
+  // Open detail panel when a row is clicked
+  useSeizenTableEvent(table, "row-click", (customer) => {
+    console.log("Viewing customer:", customer.id);
+    table.plugin.open("row-detail", { row: customer });
+  });
+
+  return <SeizenTable table={table} />;
+}
+```
+</CodeGroup>
+
+## Use Cases
+
+<AccordionGroup>
+  <Accordion title="User Management">
+    Display full user profiles including metadata, permissions, and activity logs when clicking on a user row.
+  </Accordion>
+  
+  <Accordion title="Order Details">
+    Show complete order information including line items, shipping details, and payment information.
+  </Accordion>
+  
+  <Accordion title="Log Inspection">
+    View full log entries with stack traces, metadata, and timestamps when investigating issues.
+  </Accordion>
+  
+  <Accordion title="Product Information">
+    Display comprehensive product details including specifications, pricing history, and inventory across warehouses.
+  </Accordion>
+</AccordionGroup>
+
+## Tips
+
+<Tip>
+  The row detail panel is ideal for displaying fields that don't fit in the table columns, such as long text, nested objects, or metadata.
+</Tip>
+
+<Info>
+  You can close the panel programmatically using `table.plugin.close("row-detail")`.
+</Info>
+
+<Warning>
+  Make sure to pass the full row object to `table.plugin.open()`, not just the row ID. The plugin needs access to all row fields.
+</Warning>

@@ -1,0 +1,311 @@
+---
+title: 'Pagination'
+description: 'Configure and control table pagination'
+---
+
+## Overview
+
+Seizen Table includes built-in pagination with a customizable UI component. Pagination is enabled by default and can be configured through the `SeizenTable` component or controlled programmatically via the table instance.
+
+## Basic Usage
+
+Pagination is enabled by default with sensible defaults:
+
+```tsx
+import { useSeizenTable, SeizenTable } from '@izumisy/seizen-table';
+
+function App() {
+  const table = useSeizenTable({ data, columns });
+
+  // Pagination enabled with defaults:
+  // - Initial page: 0
+  // - Page size: 10
+  // - Size options: [10, 20, 50, 100]
+  return <SeizenTable table={table} />;
+}
+```
+
+## Disable Pagination
+
+To disable pagination:
+
+```tsx
+<SeizenTable table={table} paginate={{ enable: false }} />
+```
+
+## Configure Page Size Options
+
+Customize the available page size options:
+
+```tsx
+<SeizenTable 
+  table={table} 
+  paginate={{ sizeOptions: [25, 50, 100, 250] }} 
+/>
+```
+
+## Paginator Component Props
+
+When using the standalone `Paginator` component:
+
+<ParamField path="table" type="SeizenTableInstance<TData>" required>
+  The table instance from `useSeizenTable`
+</ParamField>
+
+<ParamField path="sizeOptions" type="number[]" default="[10, 20, 50, 100]">
+  Page size options to display in the dropdown
+</ParamField>
+
+<ParamField path="showPageSizeSelector" type="boolean" default="true">
+  Whether to show the page size selector dropdown
+</ParamField>
+
+<ParamField path="showPageInfo" type="boolean" default="true">
+  Whether to show page info (e.g., "1-10 of 100")
+</ParamField>
+
+## Standalone Paginator
+
+Use the `Paginator` component separately:
+
+```tsx
+import { useSeizenTable, SeizenTable } from '@izumisy/seizen-table';
+
+function CustomTable() {
+  const table = useSeizenTable({ data, columns });
+
+  return (
+    <div>
+      <SeizenTable.Root table={table}>
+        <SeizenTable.Table>
+          <SeizenTable.Header />
+          <SeizenTable.Body />
+        </SeizenTable.Table>
+      </SeizenTable.Root>
+      
+      <SeizenTable.Paginator 
+        table={table}
+        sizeOptions={[20, 50, 100]}
+        showPageInfo={true}
+        showPageSizeSelector={true}
+      />
+    </div>
+  );
+}
+```
+
+## Programmatic Control
+
+Control pagination programmatically using the table instance:
+
+### Get Pagination State
+
+```tsx
+const pagination = table.getPaginationState();
+console.log(pagination);
+// { pageIndex: 0, pageSize: 10 }
+```
+
+### Set Page Index
+
+Navigate to a specific page (0-based):
+
+```tsx
+table.setPageIndex(2); // Go to page 3
+```
+
+### Set Page Size
+
+Change the number of rows per page:
+
+```tsx
+table.setPageSize(50); // Show 50 rows per page
+```
+
+### Example: Custom Pagination Controls
+
+```tsx
+function CustomPaginationControls() {
+  const table = useSeizenTable({ data, columns });
+  const { pageIndex, pageSize } = table.getPaginationState();
+  const tanstack = table._tanstackTable;
+
+  return (
+    <div>
+      <SeizenTable table={table} paginate={{ enable: false }} />
+      
+      <div className="custom-pagination">
+        <button 
+          onClick={() => table.setPageIndex(0)}
+          disabled={!tanstack.getCanPreviousPage()}
+        >
+          First
+        </button>
+        
+        <button 
+          onClick={() => table.setPageIndex(pageIndex - 1)}
+          disabled={!tanstack.getCanPreviousPage()}
+        >
+          Previous
+        </button>
+        
+        <span>
+          Page {pageIndex + 1} of {tanstack.getPageCount()}
+        </span>
+        
+        <button 
+          onClick={() => table.setPageIndex(pageIndex + 1)}
+          disabled={!tanstack.getCanNextPage()}
+        >
+          Next
+        </button>
+        
+        <button 
+          onClick={() => table.setPageIndex(tanstack.getPageCount() - 1)}
+          disabled={!tanstack.getCanNextPage()}
+        >
+          Last
+        </button>
+        
+        <select 
+          value={pageSize} 
+          onChange={(e) => table.setPageSize(Number(e.target.value))}
+        >
+          {[10, 20, 50, 100].map(size => (
+            <option key={size} value={size}>{size}</option>
+          ))}
+        </select>
+      </div>
+    </div>
+  );
+}
+```
+
+## Pagination Events
+
+Listen to pagination changes using the event bus:
+
+```tsx
+import { useSeizenTable, useSeizenTableEvent } from '@izumisy/seizen-table';
+
+function App() {
+  const table = useSeizenTable({ data, columns });
+
+  useSeizenTableEvent(table, 'pagination-change', (pagination) => {
+    console.log('Pagination changed:', pagination);
+    // { pageIndex: 1, pageSize: 20 }
+  });
+
+  return <SeizenTable table={table} />;
+}
+```
+
+## Remote Mode Pagination
+
+For server-side pagination, use Remote Mode with `totalRowCount`:
+
+```tsx
+import { useSeizenTable, SeizenTable, useSeizenTableEvent } from '@izumisy/seizen-table';
+import { useState, useEffect } from 'react';
+
+function RemoteTable() {
+  const [data, setData] = useState([]);
+  const [totalRows, setTotalRows] = useState(0);
+  const [loading, setLoading] = useState(false);
+
+  const table = useSeizenTable({
+    data,
+    columns,
+    remote: { totalRowCount: totalRows },
+  });
+
+  // Fetch data when pagination changes
+  useSeizenTableEvent(table, 'pagination-change', async (pagination) => {
+    setLoading(true);
+    const { pageIndex, pageSize } = pagination;
+    
+    const response = await fetch(
+      `/api/users?page=${pageIndex}&limit=${pageSize}`
+    );
+    const { data: users, total } = await response.json();
+    
+    setData(users);
+    setTotalRows(total);
+    setLoading(false);
+  });
+
+  return <SeizenTable table={table} loading={loading} />;
+}
+```
+
+### How Remote Mode Works
+
+1. **Set `remote` option** with `totalRowCount`:
+   ```tsx
+   remote: { totalRowCount: 1000 }
+   ```
+
+2. **Internal pagination is disabled** - TanStack Table won't paginate the data
+
+3. **State is maintained** for UI synchronization:
+   - `pageIndex` and `pageSize` are tracked
+   - `getPageCount()` calculates pages from `totalRowCount`
+
+4. **Events are emitted** when pagination changes:
+   - Subscribe to `pagination-change` event
+   - Fetch new data from your backend
+   - Update `data` and `totalRowCount`
+
+## Pagination State
+
+The pagination state object contains:
+
+```tsx
+type PaginationState = {
+  pageIndex: number;  // Current page (0-based)
+  pageSize: number;   // Rows per page
+};
+```
+
+## TanStack Table Methods
+
+Access advanced pagination methods via the TanStack Table instance:
+
+```tsx
+const tanstack = table._tanstackTable;
+
+// Get page count
+const pageCount = tanstack.getPageCount();
+
+// Navigation
+tanstack.firstPage();
+tanstack.previousPage();
+tanstack.nextPage();
+tanstack.lastPage();
+
+// Check navigation availability
+const canPrevious = tanstack.getCanPreviousPage();
+const canNext = tanstack.getCanNextPage();
+
+// Set page
+tanstack.setPageIndex(2);
+tanstack.setPageSize(50);
+```
+
+## Paginator UI
+
+The default paginator includes:
+
+- **First page button** - Navigate to first page
+- **Previous page button** - Go back one page
+- **Page indicator** - "Page X of Y"
+- **Next page button** - Go forward one page
+- **Last page button** - Navigate to last page
+- **Page size selector** - Dropdown to change rows per page
+- **Row count info** - "1-10 of 100" display
+
+All buttons are automatically disabled when navigation is not possible.
+
+<Note>
+In Remote Mode, pagination events are emitted but the data is not paginated internally. You must fetch the appropriate page from your backend and update the `data` and `totalRowCount`.
+</Note>

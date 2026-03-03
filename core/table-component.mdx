@@ -1,0 +1,248 @@
+---
+title: 'SeizenTable Component'
+description: 'Learn how to use the SeizenTable component and its compound components'
+---
+
+## Overview
+
+The `SeizenTable` component provides a high-level, all-in-one table UI with built-in pagination, loading states, and plugin support. It uses semantic HTML table elements styled with CSS Variables.
+
+## Basic Usage
+
+```tsx
+import { useSeizenTable, SeizenTable, type ColumnDef } from '@izumisy/seizen-table';
+
+type Person = {
+  name: string;
+  age: number;
+  email: string;
+};
+
+const columns: ColumnDef<Person>[] = [
+  { accessorKey: 'name', header: 'Name' },
+  { accessorKey: 'age', header: 'Age' },
+  { accessorKey: 'email', header: 'Email' },
+];
+
+const data: Person[] = [
+  { name: 'John Doe', age: 30, email: 'john@example.com' },
+  { name: 'Jane Smith', age: 25, email: 'jane@example.com' },
+];
+
+function App() {
+  const table = useSeizenTable({ data, columns });
+
+  return <SeizenTable table={table} />;
+}
+```
+
+## Props
+
+<ParamField path="table" type="SeizenTableInstance<TData>" required>
+  The table instance from `useSeizenTable`
+</ParamField>
+
+<ParamField path="className" type="string">
+  Additional CSS class name for the table container
+</ParamField>
+
+<ParamField path="paginate" type="PaginateOptions">
+  Pagination configuration
+  
+  <ParamField path="paginate.enable" type="boolean" default="true">
+    Whether to enable pagination
+  </ParamField>
+  
+  <ParamField path="paginate.sizeOptions" type="number[]" default="[10, 20, 50, 100]">
+    Page size options to display in the paginator dropdown
+  </ParamField>
+</ParamField>
+
+<ParamField path="loading" type="boolean" default="false">
+  Show loading overlay on the table. Useful for Remote Mode when fetching data.
+</ParamField>
+
+<ParamField path="loaderComponent" type="React.ReactNode">
+  Custom loader component. Defaults to a built-in spinner.
+</ParamField>
+
+## Pagination
+
+Pagination is enabled by default. To disable it:
+
+```tsx
+<SeizenTable table={table} paginate={{ enable: false }} />
+```
+
+Customize page size options:
+
+```tsx
+<SeizenTable 
+  table={table} 
+  paginate={{ sizeOptions: [25, 50, 100, 250] }} 
+/>
+```
+
+## Loading State
+
+Show a loading overlay when fetching data:
+
+```tsx
+function RemoteTable() {
+  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState([]);
+
+  const table = useSeizenTable({ data, columns });
+
+  return <SeizenTable table={table} loading={loading} />;
+}
+```
+
+With a custom loader:
+
+```tsx
+<SeizenTable 
+  table={table} 
+  loading={isLoading}
+  loaderComponent={<MySpinner size="lg" />}
+/>
+```
+
+## Compound Components
+
+For more control over the table layout, use compound components:
+
+```tsx
+import { SeizenTable, SeizenTablePlugins } from '@izumisy/seizen-table';
+
+function CustomTable() {
+  const table = useSeizenTable({ data, columns });
+
+  return (
+    <SeizenTable.Root table={table}>
+      <SeizenTablePlugins.SidePanel position="left" />
+      <SeizenTable.Content>
+        <SeizenTablePlugins.Header />
+        <SeizenTable.Table>
+          <SeizenTable.Header />
+          <SeizenTable.Body />
+        </SeizenTable.Table>
+        <SeizenTablePlugins.Footer />
+        <SeizenTable.Paginator />
+      </SeizenTable.Content>
+      <SeizenTablePlugins.SidePanel position="right" />
+    </SeizenTable.Root>
+  );
+}
+```
+
+### Available Compound Components
+
+<ParamField path="SeizenTable.Root" type="Component">
+  Root container that provides table context
+</ParamField>
+
+<ParamField path="SeizenTable.Content" type="Component">
+  Main content container for table and pagination
+</ParamField>
+
+<ParamField path="SeizenTable.Table" type="Component">
+  The actual `<table>` element wrapper
+</ParamField>
+
+<ParamField path="SeizenTable.Header" type="Component">
+  Table header (`<thead>`) with column headers
+</ParamField>
+
+<ParamField path="SeizenTable.Body" type="Component">
+  Table body (`<tbody>`) with data rows
+</ParamField>
+
+<ParamField path="SeizenTable.Row" type="Component">
+  Individual table row component
+</ParamField>
+
+<ParamField path="SeizenTable.Cell" type="Component">
+  Individual table cell component
+</ParamField>
+
+<ParamField path="SeizenTable.Paginator" type="Component">
+  Pagination controls
+</ParamField>
+
+<ParamField path="SeizenTable.Loader" type="Component">
+  Loading overlay component
+</ParamField>
+
+## Custom Loader Component
+
+The `Loader` component can be used in Composable UI mode:
+
+```tsx
+<SeizenTable.Table before={<SeizenTable.Loader loading={isLoading} />}>
+  <SeizenTable.Header />
+  <SeizenTable.Body />
+</SeizenTable.Table>
+```
+
+With custom loader content:
+
+```tsx
+<SeizenTable.Loader loading={isLoading}>
+  <div className="custom-spinner">
+    <LoadingAnimation />
+  </div>
+</SeizenTable.Loader>
+```
+
+## Plugin UI Slots
+
+Use `SeizenTablePlugins` components to render plugin-provided UI:
+
+- `SeizenTablePlugins.SidePanel` - Side panels (left/right)
+- `SeizenTablePlugins.Header` - Header area above table
+- `SeizenTablePlugins.Footer` - Footer area below table
+- `SeizenTablePlugins.InlineRow` - Expandable row content
+- `SeizenTablePlugins.Cell` - Custom cell overlays
+
+See the [Plugin System](/plugins/overview) documentation for more details.
+
+## Pattern: Hook + Component
+
+Seizen Table follows a hook + component pattern:
+
+```tsx
+function UsersPage() {
+  // 1. Create table instance with the hook
+  const table = useSeizenTable({
+    data: users,
+    columns,
+    plugins: [FilterPlugin.configure()],
+  });
+
+  // 2. Access table state and methods
+  const handleDelete = () => {
+    const selected = table.getSelectedRows();
+    deleteUsers(selected);
+    table.clearSelection();
+  };
+
+  // 3. Render with the component
+  return (
+    <div>
+      <button onClick={handleDelete}>Delete Selected</button>
+      <SeizenTable table={table} />
+    </div>
+  );
+}
+```
+
+This pattern provides:
+
+- **Full control** - Access table state and methods from the hook
+- **Flexibility** - Trigger actions from outside the table component
+- **Composability** - Share table instance across multiple components
+
+<Note>
+The `SeizenTable` component is the highest-level abstraction. For maximum control, use compound components or access the TanStack Table instance directly via `table._tanstackTable`.
+</Note>

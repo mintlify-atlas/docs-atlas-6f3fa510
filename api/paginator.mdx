@@ -1,0 +1,318 @@
+---
+title: Paginator
+description: Pagination controls for navigating through table pages
+icon: arrows-left-right
+---
+
+The `Paginator` component provides pagination controls with page navigation, page size selection, and row count display.
+
+## Import
+
+```tsx
+import { Paginator } from "@izumisy/seizen-table";
+// or
+import { SeizenTable } from "@izumisy/seizen-table";
+// Use as: <SeizenTable.Paginator />
+```
+
+## Usage
+
+### Standalone Usage
+
+```tsx
+import { useSeizenTable, Paginator } from "@izumisy/seizen-table";
+
+function MyTable() {
+  const table = useSeizenTable({ data, columns });
+
+  return (
+    <div>
+      {/* Custom table rendering */}
+      <Paginator table={table} />
+    </div>
+  );
+}
+```
+
+### With Compound Components
+
+```tsx
+import { SeizenTable } from "@izumisy/seizen-table";
+
+<SeizenTable.Root table={table}>
+  <SeizenTable.Content>
+    <SeizenTable.Table>
+      <SeizenTable.Header />
+      <SeizenTable.Body />
+    </SeizenTable.Table>
+    
+    <SeizenTable.Paginator
+      sizeOptions={[10, 25, 50, 100]}
+      showPageSizeSelector={true}
+      showPageInfo={true}
+    />
+  </SeizenTable.Content>
+</SeizenTable.Root>
+```
+
+### Via High-Level Component
+
+```tsx
+<SeizenTable
+  table={table}
+  paginate={{
+    enable: true,
+    sizeOptions: [10, 20, 50, 100],
+  }}
+/>
+```
+
+## Props
+
+<ParamField path="table" type="SeizenTableInstance<TData>" required>
+  The table instance from `useSeizenTable`.
+
+  When used within `<SeizenTable.Root>`, the table prop is optional (automatically provided by context).
+
+  ```tsx
+  const table = useSeizenTable({ data, columns });
+  <Paginator table={table} />
+  ```
+</ParamField>
+
+<ParamField path="sizeOptions" type="number[]" default="[10, 20, 50, 100]">
+  Page size options to display in the dropdown selector.
+
+  ```tsx
+  <Paginator table={table} sizeOptions={[25, 50, 100, 200]} />
+  ```
+</ParamField>
+
+<ParamField path="showPageSizeSelector" type="boolean" default="true">
+  Whether to show the page size selector dropdown.
+
+  ```tsx
+  <Paginator table={table} showPageSizeSelector={false} />
+  ```
+</ParamField>
+
+<ParamField path="showPageInfo" type="boolean" default="true">
+  Whether to show page info text (e.g., "1-10 of 100").
+
+  ```tsx
+  <Paginator table={table} showPageInfo={false} />
+  ```
+</ParamField>
+
+## Features
+
+### Navigation Controls
+
+The paginator provides four navigation buttons:
+
+- **First Page** - Jump to the first page
+- **Previous Page** - Go to the previous page
+- **Next Page** - Go to the next page
+- **Last Page** - Jump to the last page
+
+Buttons are automatically disabled when:
+- First/Previous buttons are disabled on the first page
+- Next/Last buttons are disabled on the last page
+
+### Page Size Selector
+
+Dropdown allowing users to change the number of rows displayed per page.
+
+- Default options: `[10, 20, 50, 100]`
+- Customizable via `sizeOptions` prop
+- Can be hidden with `showPageSizeSelector={false}`
+
+### Page Info Display
+
+Shows current row range and total row count:
+- Format: "1-10 of 100"
+- Automatically calculates based on current page and page size
+- Can be hidden with `showPageInfo={false}`
+
+### Remote Mode Support
+
+The paginator automatically adapts to Remote Mode:
+
+```tsx
+const table = useSeizenTable({
+  data,
+  columns,
+  remote: { totalRowCount: 1000 }, // Total rows from server
+});
+
+// Paginator uses totalRowCount for page count calculation
+<Paginator table={table} />
+```
+
+In Remote Mode:
+- Uses `totalRowCount` from Remote Options for row count
+- Page count is calculated as `Math.ceil(totalRowCount / pageSize)`
+- Pagination changes emit `pagination-change` events for server requests
+
+## Behavior
+
+### Page Navigation
+
+When users navigate pages:
+1. Page index updates in table state
+2. In Remote Mode: `pagination-change` event is emitted
+3. Table re-renders with new page data
+
+```tsx
+// Listen to pagination changes in Remote Mode
+table.eventBus.subscribe("pagination-change", (state) => {
+  console.log(`Page: ${state.pageIndex}, Size: ${state.pageSize}`);
+  fetchData(state.pageIndex, state.pageSize);
+});
+```
+
+### Page Size Changes
+
+When users change page size:
+1. Page size updates in table state
+2. Page index resets to 0 (first page)
+3. In Remote Mode: `pagination-change` event is emitted
+4. Table re-renders with new page size
+
+### Programmatic Control
+
+You can control pagination programmatically via the table instance:
+
+```tsx
+// Navigate to page 3
+table.setPageIndex(2);
+
+// Change page size to 50
+table.setPageSize(50);
+
+// Get current pagination state
+const { pageIndex, pageSize } = table.getPaginationState();
+```
+
+## Styling
+
+The paginator uses CSS Variables for theming:
+
+```css
+:root {
+  /* Paginator colors */
+  --seizen-table-paginator-bg: #ffffff;
+  --seizen-table-paginator-border: #e5e7eb;
+  --seizen-table-paginator-text: #111827;
+  
+  /* Button colors */
+  --seizen-table-button-bg: transparent;
+  --seizen-table-button-hover-bg: #f3f4f6;
+  --seizen-table-button-disabled-text: #d1d5db;
+  
+  /* Select colors */
+  --seizen-table-select-bg: #ffffff;
+  --seizen-table-select-border: #d1d5db;
+  --seizen-table-select-text: #111827;
+}
+```
+
+Custom styling:
+
+```css
+/* Target paginator container */
+.seizen-table [class*="paginator"] {
+  padding: 16px;
+  background: #f9fafb;
+}
+
+/* Target navigation buttons */
+.seizen-table [class*="paginatorButton"] {
+  border-radius: 6px;
+}
+
+/* Target page size select */
+.seizen-table [class*="paginatorSelect"] {
+  min-width: 80px;
+}
+```
+
+## Layout
+
+The paginator has a three-column layout:
+
+```
+┌────────────────────────────────────────────────────┐
+│ [Page Size Selector]  [Page Info]  [Navigation]   │
+└────────────────────────────────────────────────────┘
+```
+
+- **Left**: Page size selector ("Rows per page: [dropdown]")
+- **Center**: Page info ("1-10 of 100")
+- **Right**: Navigation buttons (First, Previous, Page #, Next, Last)
+
+## Accessibility
+
+ The paginator includes accessibility features:
+
+- Navigation buttons have `aria-label` and `title` attributes
+- Page size selector has a `<label>` element with `htmlFor` attribute
+- Loading spinner has `aria-label="Loading"`
+- Disabled buttons have `disabled` attribute
+- Keyboard navigation support (Tab, Enter, Space)
+
+## Type Parameters
+
+<ParamField path="TData" type="generic">
+  The type of your row data, inherited from the table instance.
+
+  ```tsx
+  interface User {
+    id: number;
+    name: string;
+  }
+
+  const table = useSeizenTable<User>({ data, columns });
+  
+  // TData is automatically inferred
+  <Paginator table={table} />
+  ```
+</ParamField>
+
+## Related Types
+
+See [Core Types](/api/types) for:
+- `PaginatorProps<TData>`
+- `PaginationState`
+- `RemoteOptions`
+
+## Examples
+
+```tsx
+// Minimal paginator (just navigation)
+<Paginator
+  table={table}
+  showPageSizeSelector={false}
+  showPageInfo={false}
+/>
+
+// Custom page sizes
+<Paginator
+  table={table}
+  sizeOptions={[25, 50, 100, 250, 500]}
+/>
+
+// With Remote Mode
+const table = useSeizenTable({
+  data,
+  columns,
+  remote: { totalRowCount: 1000 },
+});
+
+table.eventBus.subscribe("pagination-change", async (state) => {
+  const newData = await fetchPage(state.pageIndex, state.pageSize);
+  // Update data...
+});
+
+<Paginator table={table} />
+```

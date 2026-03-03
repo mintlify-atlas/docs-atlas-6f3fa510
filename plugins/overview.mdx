@@ -1,0 +1,145 @@
+---
+title: Plugin System
+description: Extend SeizenTable with powerful pre-built features using the plugin system
+---
+
+Plugins are modular components that extend SeizenTable with advanced features like filtering, column controls, data export, and more. Each plugin is configured through the `plugins` array when initializing the table.
+
+## Installation
+
+Plugins are available in a separate package:
+
+```bash
+npm install @izumisy/seizen-table-plugins
+# or
+pnpm add @izumisy/seizen-table-plugins
+```
+
+## Basic Usage
+
+Plugins are added to your table by passing them to the `plugins` option in `useSeizenTable`:
+
+```tsx
+import { useSeizenTable, SeizenTable } from "@izumisy/seizen-table";
+import { FilterPlugin } from "@izumisy/seizen-table-plugins/filter";
+import { ColumnControlPlugin } from "@izumisy/seizen-table-plugins/column-control";
+
+function MyTable() {
+  const table = useSeizenTable({
+    data,
+    columns,
+    plugins: [
+      FilterPlugin.configure({ width: 320 }),
+      ColumnControlPlugin.configure({ width: 280 }),
+    ],
+  });
+
+  return <SeizenTable table={table} />;
+}
+```
+
+## Available Plugins
+
+<CardGroup cols={2}>
+  <Card title="FilterPlugin" icon="filter" href="/plugins/filter">
+    Advanced column filtering with type-aware operators in a side panel
+  </Card>
+  
+  <Card title="ColumnControlPlugin" icon="table-columns" href="/plugins/column-control">
+    Column visibility controls and multi-column sorting
+  </Card>
+  
+  <Card title="FileExportPlugin" icon="file-export" href="/plugins/file-export">
+    Export table data to CSV, JSONL, TSV, and custom formats
+  </Card>
+  
+  <Card title="RowDetailPlugin" icon="sidebar" href="/plugins/row-detail">
+    Display detailed row information in a side panel
+  </Card>
+  
+  <Card title="RemotePlugin" icon="cloud" href="/plugins/remote">
+    Manage remote data fetching with pagination and sorting
+  </Card>
+  
+  <Card title="PresetFilterPlugin" icon="bookmark" href="/plugins/preset-filter">
+    Quick filter buttons and global search in the table header
+  </Card>
+</CardGroup>
+
+## Plugin Configuration
+
+Each plugin has its own configuration options passed through the `.configure()` method:
+
+```tsx
+FilterPlugin.configure({
+  width: 320,
+  disableGlobalSearch: false,
+})
+```
+
+## Interacting with Plugins
+
+Plugins can be controlled programmatically using the `table.plugin` API:
+
+```tsx
+// Open a plugin's side panel
+table.plugin.open("filter");
+
+// Close a plugin's side panel
+table.plugin.close("filter");
+
+// Open with data (e.g., RowDetailPlugin)
+table.plugin.open("row-detail", { row: selectedRow });
+```
+
+## Plugin Events
+
+Plugins can emit custom events that you can subscribe to using `useSeizenTableEvent`:
+
+```tsx
+import { useSeizenTableEvent } from "@izumisy/seizen-table";
+
+function MyTable() {
+  const table = useSeizenTable({
+    data,
+    columns,
+    plugins: [RowDetailPlugin.configure({ width: 350 })],
+  });
+
+  // Open row detail panel when a row is clicked
+  useSeizenTableEvent(table, "row-click", (row) => {
+    table.plugin.open("row-detail", { row });
+  });
+
+  return <SeizenTable table={table} />;
+}
+```
+
+## Multiple Plugins
+
+You can use multiple plugins together. They will render in the order they are configured:
+
+```tsx
+const table = useSeizenTable({
+  data,
+  columns,
+  plugins: [
+    PresetFilterPlugin.configure({
+      presets: [
+        { id: "active", label: "Active", filters: [...] },
+      ],
+    }),
+    FilterPlugin.configure({ width: 320 }),
+    ColumnControlPlugin.configure({ width: 280 }),
+    FileExportPlugin.configure({
+      filename: "export",
+      exporters: [CsvExporter, JsonlExporter],
+    }),
+    RowDetailPlugin.configure({ width: 350 }),
+  ],
+});
+```
+
+## Creating Custom Plugins
+
+You can create your own plugins to extend SeizenTable with custom functionality. See the [Plugin Development](/advanced/plugin-development) guide for details.

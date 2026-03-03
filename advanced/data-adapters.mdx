@@ -1,0 +1,307 @@
+---
+title: Data Adapters
+description: Connect Seizen Table to backend data sources with zero boilerplate
+---
+
+Data adapters provide a seamless way to connect Seizen Table to backend data sources. Instead of manually managing API calls, state synchronization, and pagination logic, adapters handle everything automatically.
+
+## Why Use Data Adapters?
+
+Without an adapter, you'd need to:
+
+- Manually fetch data from your backend
+- Handle sorting, filtering, and pagination state
+- Sync table state with backend queries
+- Manage loading and error states
+- Write boilerplate for each table
+
+With an adapter, all of this is handled for you:
+
+```tsx
+const adapter = SupabaseAdapter.configure({
+  client: supabase,
+  table: "users",
+});
+
+const table = useSeizenTable({ columns, adapter });
+```
+
+## How Adapters Work
+
+Data adapters implement the adapter pattern to abstract backend communication:
+
+<Steps>
+  <Step title="Configure the adapter">
+    Pass backend client and table/collection configuration
+  </Step>
+  
+  <Step title="Pass to useSeizenTable">
+    The adapter replaces the `data` prop
+  </Step>
+  
+  <Step title="Automatic synchronization">
+    The table automatically fetches data when state changes
+  </Step>
+  
+  <Step title="Backend operations">
+    Sorting, filtering, and pagination happen on the backend
+  </Step>
+</Steps>
+
+## Supabase Adapter Example
+
+The Supabase adapter connects to Supabase databases with minimal configuration:
+
+```tsx
+import { useSeizenTable, SeizenTable } from "@izumisy/seizen-table";
+import { SupabaseAdapter } from "@izumisy/seizen-datatable-adapter-supabase";
+import { createClient } from "@supabase/supabase-js";
+
+// Initialize Supabase client
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_ANON_KEY
+);
+
+// Configure the adapter
+const adapter = SupabaseAdapter.configure({
+  client: supabase,
+  table: "users",
+});
+
+function UsersTable() {
+  const table = useSeizenTable({
+    columns,
+    adapter,  // Pass adapter instead of data
+  });
+
+  return <SeizenTable table={table} />;
+}
+```
+
+## What Adapters Handle Automatically
+
+### Sorting
+
+When a user clicks a column header to sort, the adapter:
+
+1. Receives the sorting state from the table
+2. Translates it to backend query syntax
+3. Fetches sorted data from the backend
+4. Updates the table with new data
+
+```tsx
+// User clicks column header
+// Adapter automatically executes:
+supabase
+  .from("users")
+  .select("*")
+  .order("name", { ascending: true })
+```
+
+### Filtering
+
+Column filters are automatically translated to backend queries:
+
+```tsx
+// User applies filter: "name contains 'John'"
+// Adapter executes:
+supabase
+  .from("users")
+  .select("*")
+  .ilike("name", "%John%")
+```
+
+### Pagination
+
+Both offset-based and cursor-based pagination are supported:
+
+```tsx
+// Offset-based (page 2, 20 items per page)
+supabase
+  .from("users")
+  .select("*")
+  .range(20, 39)
+
+// Cursor-based (after user_id: "abc123")
+supabase
+  .from("users")
+  .select("*")
+  .gt("id", "abc123")
+  .limit(20)
+```
+
+## Adapter Configuration Pattern
+
+All adapters follow a consistent configuration pattern:
+
+```tsx
+const adapter = AdapterName.configure({
+  client: backendClient,      // Backend client instance
+  table: "table_name",         // Table/collection name
+  // ... adapter-specific options
+});
+```
+
+### Common Configuration Options
+
+While each adapter has specific options, common patterns include:
+
+| Option | Description | Example |
+|--------|-------------|--------|
+| `client` | Backend client instance | `supabase`, `firestore` |
+| `table` / `collection` | Table or collection name | `"users"` |
+| `select` | Columns to select | `["id", "name", "email"]` |
+| `where` | Static filters | `{ active: true }` |
+| `defaultPageSize` | Default page size | `25` |
+
+## Advanced: Custom Filtering
+
+Adapters can accept additional configuration for custom filtering logic:
+
+```tsx
+const adapter = SupabaseAdapter.configure({
+  client: supabase,
+  table: "users",
+  // Only show active users
+  where: { active: true },
+  // Custom column mapping
+  columnMapping: {
+    fullName: "full_name",  // Table column uses full_name instead of fullName
+  },
+});
+```
+
+## Planned Adapters
+
+Seizen Table will support these adapters:
+
+<CardGroup cols={2}>
+  <Card title="Supabase Database" icon="database">
+    Direct PostgreSQL access via Supabase client
+  </Card>
+  
+  <Card title="Supabase pg_graphql" icon="diagram-project">
+    GraphQL queries to Supabase
+  </Card>
+  
+  <Card title="Hasura GraphQL" icon="h">
+    Hasura GraphQL Engine integration
+  </Card>
+  
+  <Card title="Firebase Firestore" icon="fire">
+    Cloud Firestore NoSQL database
+  </Card>
+</CardGroup>
+
+## Building a Custom Adapter
+
+To create a custom adapter, implement the adapter interface:
+
+```tsx
+interface DataAdapter<TData> {
+  // Fetch data with current table state
+  fetchData: (params: {
+    sorting: SortingState;
+    filters: ColumnFiltersState;
+    pagination: PaginationState;
+  }) => Promise<{
+    data: TData[];
+    totalCount: number;
+  }>;
+  
+  // Optional: Handle mutations
+  createRow?: (row: Partial<TData>) => Promise<TData>;
+  updateRow?: (id: string, row: Partial<TData>) => Promise<TData>;
+  deleteRow?: (id: string) => Promise<void>;
+}
+```
+
+### Custom Adapter Example
+
+Here's a simple REST API adapter:
+
+```tsx
+import type { SortingState, ColumnFiltersState, PaginationState } from "@tanstack/react-table";
+
+class RESTAdapter<TData> {
+  constructor(
+    private baseUrl: string,
+    private endpoint: string
+  ) {}
+
+  async fetchData(params: {
+    sorting: SortingState;
+    filters: ColumnFiltersState;
+    pagination: PaginationState;
+  }) {
+    const queryParams = new URLSearchParams();
+    
+    // Add sorting
+    if (params.sorting.length > 0) {
+      const sort = params.sorting[0];
+      queryParams.set("sort", sort.id);
+      queryParams.set("order", sort.desc ? "desc" : "asc");
+    }
+    
+    // Add pagination
+    queryParams.set("page", String(params.pagination.pageIndex));
+    queryParams.set("pageSize", String(params.pagination.pageSize));
+    
+    // Add filters
+    params.filters.forEach((filter) => {
+      queryParams.set(filter.id, String(filter.value));
+    });
+    
+    const response = await fetch(
+      `${this.baseUrl}/${this.endpoint}?${queryParams}`
+    );
+    
+    const result = await response.json();
+    
+    return {
+      data: result.data as TData[],
+      totalCount: result.total,
+    };
+  }
+  
+  static configure<TData>(baseUrl: string, endpoint: string) {
+    return new RESTAdapter<TData>(baseUrl, endpoint);
+  }
+}
+
+// Usage
+const adapter = RESTAdapter.configure<User>(
+  "https://api.example.com",
+  "users"
+);
+
+const table = useSeizenTable({ columns, adapter });
+```
+
+<Note>
+  When building custom adapters, ensure proper error handling and loading states. Adapters should handle network errors gracefully and provide meaningful error messages.
+</Note>
+
+## Adapter vs Static Data
+
+Choose between adapters and static data based on your use case:
+
+| Use Case | Recommendation |
+|----------|---------------|
+| Small, static datasets (< 100 rows) | Use `data` prop |
+| Large datasets (> 1000 rows) | Use adapter |
+| Real-time updates needed | Use adapter |
+| Server-side filtering/sorting needed | Use adapter |
+| Offline-first application | Use `data` prop |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Plugin Development" icon="puzzle-piece" href="/advanced/plugin-development">
+    Learn how to create custom plugins
+  </Card>
+  <Card title="Event Bus" icon="tower-broadcast" href="/core-concepts/events">
+    React to table state changes
+  </Card>
+</CardGroup>

@@ -1,0 +1,234 @@
+---
+title: Custom Table Rendering
+description: Take full control over table rendering with direct TanStack Table access
+---
+
+Seizen Table gives you complete control over how your table is rendered. While the default `SeizenTable` component works great for most use cases, you can access the underlying TanStack Table instance for full customization.
+
+## When to Use Custom Rendering
+
+Consider custom rendering when you need:
+
+- Custom table markup or structure
+- Integration with existing component libraries
+- Complete control over styling and layout
+- Special row or cell rendering logic
+- Advanced accessibility features
+
+## Accessing the TanStack Table Instance
+
+The `useSeizenTable` hook returns a wrapped table instance with a `_tanstackTable` property that exposes the underlying TanStack Table.
+
+```tsx
+const table = useSeizenTable({ data, columns });
+const tanstack = table._tanstackTable;
+```
+
+<Note>
+  The `_tanstackTable` property is prefixed with an underscore to indicate it's an internal API. While stable, use it when you need direct access to TanStack Table features.
+</Note>
+
+## Complete Custom Table Example
+
+Here's a full example showing how to render a custom table using `flexRender` and the TanStack Table API:
+
+```tsx
+import { useSeizenTable, flexRender, type ColumnDef } from "@izumisy/seizen-table";
+
+function CustomTable<TData>({ data, columns }: { data: TData[]; columns: ColumnDef<TData>[] }) {
+  const table = useSeizenTable({ data, columns });
+  const tanstack = table._tanstackTable;
+
+  return (
+    <table>
+      <thead>
+        {tanstack.getHeaderGroups().map((headerGroup) => (
+          <tr key={headerGroup.id}>
+            {headerGroup.headers.map((header) => (
+              <th key={header.id}>
+                {header.isPlaceholder
+                  ? null
+                  : flexRender(header.column.columnDef.header, header.getContext())}
+              </th>
+            ))}
+          </tr>
+        ))}
+      </thead>
+      <tbody>
+        {tanstack.getRowModel().rows.map((row) => (
+          <tr key={row.id}>
+            {row.getVisibleCells().map((cell) => (
+              <td key={cell.id}>
+                {flexRender(cell.column.columnDef.cell, cell.getContext())}
+              </td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+```
+
+## Understanding flexRender
+
+The `flexRender` utility is imported from `@izumisy/seizen-table` and handles rendering cell/header content that can be:
+
+- A React component
+- A render function
+- A string or primitive value
+
+```tsx
+flexRender(contentToRender, context)
+```
+
+<Steps>
+  <Step title="Import flexRender">
+    ```tsx
+    import { flexRender } from "@izumisy/seizen-table";
+    ```
+  </Step>
+  
+  <Step title="Use in header cells">
+    ```tsx
+    flexRender(header.column.columnDef.header, header.getContext())
+    ```
+  </Step>
+  
+  <Step title="Use in body cells">
+    ```tsx
+    flexRender(cell.column.columnDef.cell, cell.getContext())
+    ```
+  </Step>
+</Steps>
+
+## Key TanStack Table Methods
+
+When working with custom rendering, you'll commonly use these methods:
+
+### Header Rendering
+
+```tsx
+tanstack.getHeaderGroups()
+```
+
+Returns an array of header groups. Each header group contains headers for that row of the table header.
+
+### Row Rendering
+
+```tsx
+tanstack.getRowModel().rows
+```
+
+Returns the current row model based on filtering, sorting, and pagination state.
+
+### Cell Access
+
+```tsx
+row.getVisibleCells()
+```
+
+Returns all visible cells for a row, respecting column visibility settings.
+
+## Advanced Example: Custom Row Styling
+
+Here's an example with custom row highlighting based on data:
+
+```tsx
+function HighlightedTable<TData extends { status: string }>({
+  data,
+  columns,
+}: {
+  data: TData[];
+  columns: ColumnDef<TData>[];
+}) {
+  const table = useSeizenTable({ data, columns });
+  const tanstack = table._tanstackTable;
+
+  return (
+    <table>
+      <thead>
+        {tanstack.getHeaderGroups().map((headerGroup) => (
+          <tr key={headerGroup.id}>
+            {headerGroup.headers.map((header) => (
+              <th key={header.id}>
+                {header.isPlaceholder
+                  ? null
+                  : flexRender(header.column.columnDef.header, header.getContext())}
+              </th>
+            ))}
+          </tr>
+        ))}
+      </thead>
+      <tbody>
+        {tanstack.getRowModel().rows.map((row) => (
+          <tr
+            key={row.id}
+            className={row.original.status === "error" ? "bg-red-50" : ""}
+          >
+            {row.getVisibleCells().map((cell) => (
+              <td key={cell.id}>
+                {flexRender(cell.column.columnDef.cell, cell.getContext())}
+              </td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+```
+
+## Combining with Plugins
+
+Custom rendering works alongside the plugin system. You can still use `table.render()` or access plugin state:
+
+```tsx
+function CustomTableWithPlugins<TData>({
+  data,
+  columns,
+}: {
+  data: TData[];
+  columns: ColumnDef<TData>[];
+}) {
+  const table = useSeizenTable({
+    data,
+    columns,
+    plugins: [
+      RowDetail.configure({ render: (row) => <Detail data={row.original} /> }),
+    ],
+  });
+  const tanstack = table._tanstackTable;
+
+  return (
+    <div>
+      {/* Custom table rendering */}
+      <table>
+        {/* ... custom table markup ... */}
+      </table>
+      
+      {/* Plugin UI still works */}
+      {table.render()}
+    </div>
+  );
+}
+```
+
+<Warning>
+  When using custom rendering, you're responsible for:
+  - Proper key attributes on mapped elements
+  - Handling placeholder headers
+  - Applying correct column and row IDs
+  - Maintaining accessibility attributes
+</Warning>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Plugin Development" icon="puzzle-piece" href="/advanced/plugin-development">
+    Learn how to create custom plugins
+  </Card>
+  <Card title="Data Adapters" icon="database" href="/advanced/data-adapters">
+    Connect to backend data sources
+  </Card>
+</CardGroup>

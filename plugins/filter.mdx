@@ -1,0 +1,297 @@
+---
+title: FilterPlugin
+description: Advanced column filtering with type-aware operators in a side panel
+---
+
+The FilterPlugin provides a side panel UI for building complex column filters with type-aware operators. It supports string, number, date, and enum filters with automatic operator selection based on column type.
+
+## Installation
+
+```bash
+npm install @izumisy/seizen-table-plugins
+```
+
+## Import
+
+```tsx
+import { FilterPlugin } from "@izumisy/seizen-table-plugins/filter";
+```
+
+## Basic Usage
+
+```tsx
+import { useSeizenTable, SeizenTable } from "@izumisy/seizen-table";
+import { FilterPlugin } from "@izumisy/seizen-table-plugins/filter";
+
+function UsersTable() {
+  const table = useSeizenTable({
+    data,
+    columns,
+    plugins: [FilterPlugin.configure({ width: 320 })],
+  });
+
+  return <SeizenTable table={table} />;
+}
+```
+
+## Configuration
+
+<ParamField path="width" type="number" default="320">
+  Width of the filter side panel in pixels
+</ParamField>
+
+<ParamField path="disableGlobalSearch" type="boolean" default="false">
+  Disable the global search input in the header slot
+</ParamField>
+
+## Defining Filterable Columns
+
+To enable filtering on a column, add `filterType` to the column's `meta` property:
+
+```tsx
+import type { ColumnDef } from "@izumisy/seizen-table";
+
+type Person = {
+  name: string;
+  age: number;
+  status: string;
+  joinedAt: string;
+};
+
+const columns: ColumnDef<Person>[] = [
+  {
+    accessorKey: "name",
+    header: "Name",
+    meta: { filterType: "string" },
+  },
+  {
+    accessorKey: "age",
+    header: "Age",
+    meta: { filterType: "number" },
+  },
+  {
+    accessorKey: "status",
+    header: "Status",
+    meta: {
+      filterType: "enum",
+      filterEnumValues: ["active", "inactive", "pending"],
+    },
+  },
+  {
+    accessorKey: "joinedAt",
+    header: "Joined Date",
+    meta: { filterType: "date" },
+  },
+];
+```
+
+## Filter Types and Operators
+
+### String Filters
+
+<CodeGroup>
+```tsx String Column
+{
+  accessorKey: "name",
+  header: "Name",
+  meta: { filterType: "string" },
+}
+```
+</CodeGroup>
+
+**Available Operators:**
+- **Contains** - Value contains the search term
+- **Equals** - Exact match
+- **Starts with** - Value starts with the search term
+- **Ends with** - Value ends with the search term
+- **Is empty** - Value is null or empty string
+- **Is not empty** - Value is not null or empty string
+
+### Number Filters
+
+<CodeGroup>
+```tsx Number Column
+{
+  accessorKey: "age",
+  header: "Age",
+  meta: { filterType: "number" },
+}
+```
+</CodeGroup>
+
+**Available Operators:**
+- `=` (equals)
+- `≠` (not equals)
+- `>` (greater than)
+- `≥` (greater than or equal)
+- `<` (less than)
+- `≤` (less than or equal)
+
+### Date Filters
+
+<CodeGroup>
+```tsx Date Column
+{
+  accessorKey: "createdAt",
+  header: "Created",
+  meta: { filterType: "date" },
+}
+```
+</CodeGroup>
+
+**Available Operators:**
+- **=** (on date)
+- **Before** - Before the specified date
+- **After** - After the specified date
+
+### Enum Filters
+
+<CodeGroup>
+```tsx Enum Column
+{
+  accessorKey: "status",
+  header: "Status",
+  meta: {
+    filterType: "enum",
+    filterEnumValues: ["active", "inactive", "pending"],
+  },
+}
+```
+</CodeGroup>
+
+**Available Operators:**
+- **Is** - Value matches the selection
+- **Is not** - Value does not match the selection
+
+## Global Search
+
+By default, FilterPlugin adds a global search input to the table header. This searches across all columns:
+
+```tsx
+// Global search is enabled by default
+FilterPlugin.configure({ width: 320 })
+
+// Disable global search
+FilterPlugin.configure({ 
+  width: 320,
+  disableGlobalSearch: true,
+})
+```
+
+## Programmatic Control
+
+You can open and close the filter panel programmatically:
+
+```tsx
+function MyTable() {
+  const table = useSeizenTable({
+    data,
+    columns,
+    plugins: [FilterPlugin.configure({ width: 320 })],
+  });
+
+  const openFilters = () => {
+    table.plugin.open("filter");
+  };
+
+  const closeFilters = () => {
+    table.plugin.close("filter");
+  };
+
+  return (
+    <div>
+      <button onClick={openFilters}>Open Filters</button>
+      <SeizenTable table={table} />
+    </div>
+  );
+}
+```
+
+## Accessing Filter State
+
+You can access the current filter state from the table instance:
+
+```tsx
+const currentFilters = table.getFilterState();
+console.log(currentFilters);
+```
+
+Subscribe to filter changes using the event bus:
+
+```tsx
+import { useSeizenTableEvent } from "@izumisy/seizen-table";
+
+useSeizenTableEvent(table, "filter-change", (filters) => {
+  console.log("Filters changed:", filters);
+});
+```
+
+## Complete Example
+
+<CodeGroup>
+```tsx Complete Example
+import { useSeizenTable, SeizenTable, useSeizenTableEvent } from "@izumisy/seizen-table";
+import { FilterPlugin } from "@izumisy/seizen-table-plugins/filter";
+import type { ColumnDef } from "@izumisy/seizen-table";
+
+type User = {
+  id: number;
+  name: string;
+  email: string;
+  age: number;
+  status: "active" | "inactive" | "pending";
+  joinedAt: string;
+};
+
+const columns: ColumnDef<User>[] = [
+  {
+    accessorKey: "name",
+    header: "Name",
+    meta: { filterType: "string" },
+  },
+  {
+    accessorKey: "email",
+    header: "Email",
+    meta: { filterType: "string" },
+  },
+  {
+    accessorKey: "age",
+    header: "Age",
+    meta: { filterType: "number" },
+  },
+  {
+    accessorKey: "status",
+    header: "Status",
+    meta: {
+      filterType: "enum",
+      filterEnumValues: ["active", "inactive", "pending"],
+    },
+  },
+  {
+    accessorKey: "joinedAt",
+    header: "Joined",
+    meta: { filterType: "date" },
+  },
+];
+
+function UsersTable({ users }: { users: User[] }) {
+  const table = useSeizenTable({
+    data: users,
+    columns,
+    plugins: [
+      FilterPlugin.configure({
+        width: 320,
+        disableGlobalSearch: false,
+      }),
+    ],
+  });
+
+  // React to filter changes
+  useSeizenTableEvent(table, "filter-change", (filters) => {
+    console.log("Active filters:", filters);
+  });
+
+  return <SeizenTable table={table} />;
+}
+```
+</CodeGroup>
